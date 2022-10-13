@@ -1,32 +1,27 @@
-package winsom;
+package server;
 
-import java.io.Console;
 import java.io.IOException;
-import java.lang.System.Logger;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.nio.ByteBuffer;
+import java.nio.channels.Pipe;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.spi.SelectorProvider;
 import java.util.Iterator;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
-
-import server.ServerWorker;
 
 public class ServerManager implements Runnable {
 
     // ########## VARIABLES ##########
 
-    // worker threads threadpool and parameters
-    private static final int CORE_MULT = 10;
-    private static final int CPUS = Runtime.getRuntime().availableProcessors();
-    private ThreadPoolExecutor threadPool;
+    // worker pool wrapper
+    private ServerWorkerPool workerPool;
 	
 	// IP-port for listening
 	private InetAddress hostAddr;
@@ -35,6 +30,10 @@ public class ServerManager implements Runnable {
 	// used for selection
 	private ServerSocketChannel managerChannel;
     private Selector selector;
+
+    // used for switching channel mode between OP_READ and OP_WRITE
+    private Pipe registrationPipe;
+    private ConcurrentLinkedQueue<WritingTask> registrationQueue;
 	
 	// buffer to be used in NIO data exchanges
 	private static final int BUF_DIM = 8192;
@@ -49,12 +48,25 @@ public class ServerManager implements Runnable {
 
     // ########## METHODS ##########
 
+    // constructor
+    public ServerManager(InetAddress hostAddr, int port) throws IOException {
+        System.out.println("Hello there");
+        this.workerPool = new ServerWorkerPool();
+        this.hostAddr = hostAddr;
+        this.port = port;
+        this.registrationPipe = Pipe.open();
+        this.selector = this.createSelector();
+    }
+
+
+    // spawns a selector to be used in the server acceptance loop
     private Selector createSelector() throws IOException {
 
         // creating selector and setting up the main channel
         Selector sel = SelectorProvider.provider().openSelector();
         this.managerChannel = ServerSocketChannel.open();
         this.managerChannel.configureBlocking(false);
+        System.out.println(this.managerChannel.toString());
 
         // setting up the listener socket
         InetSocketAddress sockAddr = new InetSocketAddress(this.hostAddr, this.port);
@@ -62,6 +74,10 @@ public class ServerManager implements Runnable {
         
         // setting up the manager socket as an "accepting socket"
         this.managerChannel.register(sel, SelectionKey.OP_ACCEPT);
+
+        // setting up the registration pipe's read-end
+        this.registrationPipe.source().configureBlocking(false);
+        this.registrationPipe.source().register(sel, SelectionKey.OP_READ);
 
         return sel;
     }
@@ -81,8 +97,25 @@ public class ServerManager implements Runnable {
     }
 
 
+    // method used to switch the mode (read/write) of a socket channel
+    private void switchChannelMode() {
+        // get the head of the queue
+        WritingTask writingTask = registrationQueue.poll();
+        if(writingTask == null) return;
+
+        // getting the <channel, mode, message> triple
+        SelectionKey key = writingTask.key;
+        boolean isWriteMode = writingTask.isWriteMode;
+
+        // registering the channel for the right operation
+        if(isWriteMode) key.interestOps(SelectionKey.OP_WRITE);
+        else key.interestOps(SelectionKey.OP_READ);
+    }
+
+
     // method that handles reading the clients' requests
-    private void readMessage(SelectionKey key) throws IOException {
+    private void readRequest(SelectionKey key) throws IOException {
+
         // getting the relevant channel from the active socket
         SocketChannel sockChannel = (SocketChannel)key.channel();
 
@@ -107,9 +140,12 @@ public class ServerManager implements Runnable {
             return;
         }
 
+        // extracting a bytes array from the buffer
+        byte[] data = new byte[this.readBuffer.remaining()];
+        this.readBuffer.get(data);
+
         // hand over the data read to a worker thread
-        Future<String> result = this.threadPool.submit(new ServerWorker(sockChannel, this.readBuffer, bytesRead));
-        if(result == null) System.out.println("");
+        this.workerPool.dispatchRequest(key, this.registrationPipe.sink(), data, bytesRead);
     }
 
 
@@ -133,25 +169,20 @@ public class ServerManager implements Runnable {
 
                     // if a connection attempt was made, accept it
                     if(selKey.isAcceptable()) this.acceptConnection(selKey);
-                    else if(selKey.isReadable()) this.readMessage(selKey);
+                    else if(selKey.isReadable()) {
+                        if(selKey.channel() == registrationPipe.source()) this.switchChannelMode();
+                        else this.readRequest(selKey);
+                    }
                 }
             } catch(Exception e) {
                 e.printStackTrace();
             }
         }
     }
-
-
-    // constructor
-    public ServerManager(InetAddress hostAddr, int port) throws IOException {
-        this.hostAddr = hostAddr;
-        this.port = port;
-        this.selector = this.createSelector();
-        this.threadPool = (ThreadPoolExecutor) Executors.newFixedThreadPool(CPUS*CORE_MULT);
-    }
 	
 
 	public static void main(String[] args) {
+        System.out.println("Heeey");
         try {
             new Thread(new ServerManager(null, 8080)).start();
         } catch(IOException e) {
