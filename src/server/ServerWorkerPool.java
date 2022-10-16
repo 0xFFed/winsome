@@ -1,14 +1,11 @@
 package server;
 
-import java.nio.ByteBuffer;
 import java.nio.channels.Pipe;
 import java.nio.channels.SelectionKey;
-import java.nio.channels.SocketChannel;
-import java.util.concurrent.Callable;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
 
-import com.google.gson.Gson;
-
-public class ServerWorkerPool {
+class ServerWorkerPool {
 
     // ########## VARIABLES ##########
 
@@ -38,7 +35,7 @@ public class ServerWorkerPool {
 
     // constructor
     public ServerWorkerPool() {
-        this.workerPool = (ThreadPoolExecutor) Executors.newFixedThreadPool(CPUS*CORE_MULT);
+        this.workerPool = (ThreadPoolExecutor)Executors.newFixedThreadPool(CPUS*CORE_MULT);
     }
 
 
@@ -49,8 +46,6 @@ public class ServerWorkerPool {
 
         // creating a new parsedRequest object to pass to the relevant method
         ParsedRequest request = new ParsedRequest(key, pipe, data, bytesRead);
-
-        return null;
     }
 
 

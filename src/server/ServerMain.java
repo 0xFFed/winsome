@@ -1,5 +1,6 @@
 package server;
 
+import java.io.FileReader;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -16,16 +17,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
 
-public class ServerManager implements Runnable {
+public class ServerMain implements Runnable {
 
-    // ########## VARIABLES ##########
+    // ########## DATA ##########
 
     // worker pool wrapper
     private ServerWorkerPool workerPool;
-	
-	// IP-port for listening
-	private InetAddress hostAddr;
-	private int port;
 	
 	// used for selection
 	private ServerSocketChannel managerChannel;
@@ -40,20 +37,18 @@ public class ServerManager implements Runnable {
 	private ByteBuffer readBuffer = ByteBuffer.allocate(BUF_DIM);
 
     // main-loop determinant
-    private static boolean isStopping = false;
+    private boolean isStopping = false;
 
-    // timeout for the select call
-    private static final int SEL_TIMEOUT = 100;
+    // config object
+    private final ServerConfig config = ServerConfig.getServerConfig();
+    
 
 
     // ########## METHODS ##########
 
     // constructor
-    public ServerManager(InetAddress hostAddr, int port) throws IOException {
-        System.out.println("Hello there");
+    private ServerMain() throws IOException {
         this.workerPool = new ServerWorkerPool();
-        this.hostAddr = hostAddr;
-        this.port = port;
         this.registrationPipe = Pipe.open();
         this.selector = this.createSelector();
     }
@@ -62,14 +57,15 @@ public class ServerManager implements Runnable {
     // spawns a selector to be used in the server acceptance loop
     private Selector createSelector() throws IOException {
 
-        // creating selector and setting up the main channel
+        // creating selector
         Selector sel = SelectorProvider.provider().openSelector();
+
+        // creating a non-blocking ServerSocketChannel
         this.managerChannel = ServerSocketChannel.open();
         this.managerChannel.configureBlocking(false);
-        System.out.println(this.managerChannel.toString());
 
         // setting up the listener socket
-        InetSocketAddress sockAddr = new InetSocketAddress(this.hostAddr, this.port);
+        InetSocketAddress sockAddr = new InetSocketAddress(this.config.getAddr(), this.config.getPort());
         this.managerChannel.socket().bind(sockAddr);
         
         // setting up the manager socket as an "accepting socket"
@@ -78,6 +74,8 @@ public class ServerManager implements Runnable {
         // setting up the registration pipe's read-end
         this.registrationPipe.source().configureBlocking(false);
         this.registrationPipe.source().register(sel, SelectionKey.OP_READ);
+
+        System.out.println("Server listening on "+this.config.getAddr()+':'+this.config.getPort());
 
         return sel;
     }
@@ -94,6 +92,8 @@ public class ServerManager implements Runnable {
 
         // registering the new socket channel with the selector on the READ op
         sockChannel.register(this.selector, SelectionKey.OP_READ);
+
+        System.out.println("Connection accepted from "+sockChannel.socket().toString());
     }
 
 
@@ -151,10 +151,10 @@ public class ServerManager implements Runnable {
 
     // thread main function
     public void run() {
-        while(!isStopping) {
+        while(!(this.isStopping)) {
             try {
                 // waiting for the accepting channel to become readable
-                int timeLeft = this.selector.select(SEL_TIMEOUT);
+                int timeLeft = this.selector.select(this.config.getTimeout());
                 if(timeLeft == 0) continue; // re-try if timeout was reached
 
                 // iterate over the set of ready keys
@@ -182,11 +182,11 @@ public class ServerManager implements Runnable {
 	
 
 	public static void main(String[] args) {
-        System.out.println("Heeey");
         try {
-            new Thread(new ServerManager(null, 8080)).start();
+            new Thread(new ServerMain()).start();
         } catch(IOException e) {
             e.printStackTrace();
+            System.exit(1);
         }
 	}
 }

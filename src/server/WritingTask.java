@@ -2,7 +2,7 @@ package server;
 
 import java.nio.channels.SelectionKey;
 
-public class WritingTask {
+class WritingTask {
     public final SelectionKey key;
     public final boolean isWriteMode;
     public final String message;
