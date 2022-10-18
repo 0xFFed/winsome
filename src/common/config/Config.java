@@ -1,52 +1,45 @@
-package server;
+package common.config;
 
 import java.net.InetAddress;
+import java.nio.file.Files;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 
 import com.google.gson.Gson;
 import com.google.gson.stream.JsonReader;
 
-class ServerConfig {
-
+public class Config {
+    
     // ########## DATA ##########
 
     // default config file path
-    private static String configPath = "./src/server/config.json";
+    protected static String configPath = "./src/common/config/config.json";
 
     // IP-port for listening
-    private InetAddress hostAddr;
-    private int port;
-
-    // timeout for the select call
-    private int selTimeout;
+    private InetAddress serverAddr;
+    private int serverPort;
 
 
     // ########## METHODS ##########
 
     // constructor
-    private ServerConfig() {}
+    protected Config() {}
 
     // returns a parsed config object
-    public static ServerConfig getServerConfig() throws FileNotFoundException {
+    public static Config getConfig() throws FileNotFoundException {
         Gson gson = new Gson();
         JsonReader reader = new JsonReader(new FileReader(configPath));
         
-        return gson.fromJson(reader, ServerConfig.class);
+        return gson.fromJson(reader, Config.class);
     }
 
     // getter
     public InetAddress getAddr() {
-        return this.hostAddr;
+        return this.serverAddr;
     }
 
     // getter
     public int getPort() {
-        return this.port;
-    }
-
-    // getter
-    public int getTimeout() {
-        return this.selTimeout;
+        return this.serverPort;
     }
 }

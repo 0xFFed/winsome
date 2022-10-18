@@ -9,6 +9,8 @@ import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.spi.SelectorProvider;
 
+import common.config.Config;
+
 public class ClientMain implements Runnable {
 
     // ########## DATA ##########
@@ -19,37 +21,37 @@ public class ClientMain implements Runnable {
     // used to handle the connection
     private SocketChannel sock;
 
+    // token identifying the user to the server
+    private String authToken;
+
     // termination condition
     private boolean isStopping = false;
 
     // config object
-    private final ClientConfig config = ClientConfig.getClientConfig();
+    private final Config config = Config.getConfig();
 
     // ########## METHODS ##########
 
     private ClientMain() throws IOException {
-        this.selector = this.createSelector();
+        this.initConnection();
     }
 
-    // returns a new selector for the client
-    private Selector createSelector() throws IOException {
-        Selector sel = SelectorProvider.provider().openSelector();
+    // initiates the connection setting up the Selector and Socket
+    private void initConnection() throws IOException {
+        this.selector = SelectorProvider.provider().openSelector();
 
         // creating a non-blocking SocketChannel
         this.sock = SocketChannel.open();
         this.sock.configureBlocking(false);
 
         // establishing connection
-        System.out.println("Host: "+config.getAddr()+";\tPort: "+config.getPort());
         InetSocketAddress sockAddr = new InetSocketAddress(config.getAddr(), config.getPort());
         this.sock.connect(sockAddr);
 
         // registering the socket to detect when the connection is completely established
-        this.sock.register(sel, SelectionKey.OP_CONNECT);
+        this.sock.register(this.selector, SelectionKey.OP_CONNECT);
 
         System.out.println("Connection request sent...");
-
-        return sel;
     }
 
 
@@ -75,7 +77,7 @@ public class ClientMain implements Runnable {
         while(!(this.isStopping)) {
             try {
                 // waiting for the accepting channel to become readable
-                int timeLeft = this.selector.select(this.config.getTimeout());
+                int timeLeft = this.selector.select(500);
                 if(timeLeft == 0) continue; // re-try if timeout was reached
 
                 // iterate over the set of ready keys

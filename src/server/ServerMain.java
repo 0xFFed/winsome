@@ -17,6 +17,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
 
+import server.config.ServerConfig;
+
 public class ServerMain implements Runnable {
 
     // ########## DATA ##########
@@ -50,15 +52,15 @@ public class ServerMain implements Runnable {
     private ServerMain() throws IOException {
         this.workerPool = new ServerWorkerPool();
         this.registrationPipe = Pipe.open();
-        this.selector = this.createSelector();
+        this.startServer();
     }
 
 
-    // spawns a selector to be used in the server acceptance loop
-    private Selector createSelector() throws IOException {
+    // Selector and Accepting Socket setup
+    private void startServer() throws IOException {
 
         // creating selector
-        Selector sel = SelectorProvider.provider().openSelector();
+        this.selector = SelectorProvider.provider().openSelector();
 
         // creating a non-blocking ServerSocketChannel
         this.managerChannel = ServerSocketChannel.open();
@@ -69,15 +71,13 @@ public class ServerMain implements Runnable {
         this.managerChannel.socket().bind(sockAddr);
         
         // setting up the manager socket as an "accepting socket"
-        this.managerChannel.register(sel, SelectionKey.OP_ACCEPT);
+        this.managerChannel.register(this.selector, SelectionKey.OP_ACCEPT);
 
         // setting up the registration pipe's read-end
         this.registrationPipe.source().configureBlocking(false);
-        this.registrationPipe.source().register(sel, SelectionKey.OP_READ);
+        this.registrationPipe.source().register(this.selector, SelectionKey.OP_READ);
 
         System.out.println("Server listening on "+this.config.getAddr()+':'+this.config.getPort());
-
-        return sel;
     }
 
 
