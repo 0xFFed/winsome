@@ -1,3 +1,5 @@
 {
-    "selTimeout": 500
+    "selTimeout": 500,
+    "storagePath": "./storage/",
+    "coreMultiplier": 10
 }

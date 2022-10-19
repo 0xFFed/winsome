@@ -50,8 +50,6 @@ public class ClientMain implements Runnable {
 
         // registering the socket to detect when the connection is completely established
         this.sock.register(this.selector, SelectionKey.OP_CONNECT);
-
-        System.out.println("Connection request sent...");
     }
 
 
@@ -93,7 +91,8 @@ public class ClientMain implements Runnable {
                     // if a connection attempt was made, accept it
                     if(selKey.isConnectable()) this.finishConnection(selKey);
                 }
-            } catch (Exception e) {
+            } catch (IOException e) {
+                System.err.println("Error in Select()");
                 e.printStackTrace();
             }
         }

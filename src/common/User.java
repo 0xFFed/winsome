@@ -1,5 +1,7 @@
 package common;
 
+import java.util.Objects;
+
 public class User {
 
     // ########## DATA ##########
@@ -15,7 +17,10 @@ public class User {
     // ########## METHODS ##########
 
     // constructor
-    public User(String username, String password, String[] tags) {
+    public User(String username, String password, String[] tags) throws NullPointerException {
+        Objects.requireNonNull(username, "username cannot be null");
+        Objects.requireNonNull(password, "password cannot be null");
+        
         this.username = username;
         this.password = password;
         this.tags = tags;

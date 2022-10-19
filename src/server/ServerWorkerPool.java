@@ -5,14 +5,24 @@ import java.nio.channels.SelectionKey;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 
+import common.User;
+import common.Post;
+import server.config.ServerConfig;
+import server.storage.Storage;
+import server.storage.Storage.StorageType;
+import server.ServerMain;
+
 class ServerWorkerPool {
 
     // ########## VARIABLES ##########
 
     // worker threads threadpool and parameters
-    private static final int CORE_MULT = 10;
     private static final int CPUS = Runtime.getRuntime().availableProcessors();
     private ThreadPoolExecutor workerPool;
+
+    // user-storage and post-storage objects
+    private Storage<User> userStorage;
+    private Storage<Post> postStorage;
 
     private class ParsedRequest {
 
@@ -35,7 +45,9 @@ class ServerWorkerPool {
 
     // constructor
     public ServerWorkerPool() {
-        this.workerPool = (ThreadPoolExecutor)Executors.newFixedThreadPool(CPUS*CORE_MULT);
+        this.workerPool = (ThreadPoolExecutor)Executors.newFixedThreadPool(CPUS*ServerMain.config.getCoreMult());
+        this.userStorage = new Storage<>(ServerMain.config.getStoragePath(), Storage.StorageType.USERS);
+        this.postStorage = new Storage<>(ServerMain.config.getStoragePath(), Storage.StorageType.POSTS);
     }
 
 
@@ -50,15 +62,5 @@ class ServerWorkerPool {
 
 
     // ########## REQUEST EXECUTION METHODS ##########
-
-
-    // ########## OTHERS ##########
-
-
-    // overriding of the call() method
-    public String call() {
-        // code
-        return "";
-    }
 
 }

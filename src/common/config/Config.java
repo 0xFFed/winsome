@@ -19,6 +19,11 @@ public class Config {
     private InetAddress serverAddr;
     private int serverPort;
 
+    // IP-port for RMI calls
+    private String rmiAddr;
+    private int rmiPort;
+    private String rmiName;
+
 
     // ########## METHODS ##########
 
@@ -26,10 +31,15 @@ public class Config {
     protected Config() {}
 
     // returns a parsed config object
-    public static Config getConfig() throws FileNotFoundException {
+    public static Config getConfig() {
         Gson gson = new Gson();
-        JsonReader reader = new JsonReader(new FileReader(configPath));
-        
+        JsonReader reader = null;
+        try {
+            reader = new JsonReader(new FileReader(configPath));
+        } catch(FileNotFoundException e) {
+            System.err.println("Config file not found");
+            System.exit(1);
+        }
         return gson.fromJson(reader, Config.class);
     }
 
@@ -41,5 +51,20 @@ public class Config {
     // getter
     public int getPort() {
         return this.serverPort;
+    }
+
+    // getter
+    public String getRmiAddr() {
+        return this.rmiAddr;
+    }
+
+    // getter
+    public int getRmiPort() {
+        return this.rmiPort;
+    }
+
+    // getter
+    public String getRmiName() {
+        return this.rmiName;
     }
 }

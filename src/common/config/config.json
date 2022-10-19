@@ -1,4 +1,7 @@
 {
     "serverAddr": "127.0.0.1",
-    "serverPort": 3000
+    "serverPort": 3000,
+    "rmiAddr": "127.0.0.1",
+    "rmiPort": 3001,
+    "rmiName": "REMOTE-REGISTRATION"
 }

@@ -23,6 +23,12 @@ public class ServerConfig extends Config {
     // timeout for the select call
     private int selTimeout;
 
+    // path to the storage folder
+    private String storagePath;
+
+    // number of threads per core
+    private int coreMultiplier;
+
 
     // ########## METHODS ##########
 
@@ -30,23 +36,45 @@ public class ServerConfig extends Config {
     private ServerConfig() {}
 
     // returns a parsed config object
-    public static ServerConfig getServerConfig() throws IOException {
+    public static ServerConfig getServerConfig() {
+
         Gson gson = new Gson();
+        String configJson = null;
 
-        byte[] configBytes = Files.readAllBytes(Paths.get(configPath));
-        byte[] serverConfigBytes = Files.readAllBytes(Paths.get(serverConfigPath));
+        try {
 
-        String configString = new String(configBytes);
-        String serverConfigString = new String(serverConfigBytes);
+            byte[] configBytes = Files.readAllBytes(Paths.get(configPath));
+            byte[] serverConfigBytes = Files.readAllBytes(Paths.get(serverConfigPath));
 
-        configString = configString.replace("}", ",");
-        serverConfigString = serverConfigString.replace("{", "");
-        
-        return gson.fromJson(configString+serverConfigString, ServerConfig.class);
+            String configString = new String(configBytes);
+            String serverConfigString = new String(serverConfigBytes);
+
+            configString = configString.replace("}", ",");
+            serverConfigString = serverConfigString.replace("{", "");
+
+            configJson = configString+serverConfigString;
+
+        } catch(IOException e) {
+            System.err.println("Fatal error parsing server's config file");
+            e.printStackTrace();
+            System.exit(1);
+        }
+
+        return gson.fromJson(configJson, ServerConfig.class);
     }
 
     // getter
     public int getTimeout() {
         return this.selTimeout;
+    }
+
+    // getter
+    public String getStoragePath() {
+        return this.storagePath;
+    }
+
+    // getter
+    public int getCoreMult() {
+        return this.coreMultiplier;
     }
 }

@@ -1,5 +1,7 @@
 package common;
 
+import java.util.Objects;
+
 public class Post {
     
     // ########## DATA ##########
@@ -15,8 +17,13 @@ public class Post {
 
     // ########## METHODS ##########
 
-    public Post(String title, String content, String author, boolean isRewin) {
+    public Post(String title, String content, String author, boolean isRewin) throws NullPointerException {
+        Objects.requireNonNull(title, "title cannot be null");
+        Objects.requireNonNull(content, "content cannot be null");
+        Objects.requireNonNull(author, "author cannot be null");
+
         // generate postId
+        
         this.title = title;
         this.content = content;
         this.author = author;
@@ -26,7 +33,7 @@ public class Post {
 
     // getter
     public String getTitle() {
-        return this.title
+        return this.title;
     }
 
     // getter
@@ -40,7 +47,7 @@ public class Post {
     }
 
     // getter
-    public String getType() {
+    public boolean getType() {
         return this.isRewin;
     }
 

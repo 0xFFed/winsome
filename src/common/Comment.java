@@ -1,5 +1,7 @@
 package common;
 
+import java.util.Objects;
+
 public class Comment {
     
     // ########## DATA ##########
@@ -10,7 +12,9 @@ public class Comment {
 
     // ########## METHODS ##########
 
-    public Comment(String author, String content) {
+    public Comment(String author, String content) throws NullPointerException {
+        Objects.requireNonNull(author, "author cannot be null");
+        Objects.requireNonNull(content, "content cannot be null");
         this.author = author;
         this.content = content;
     }

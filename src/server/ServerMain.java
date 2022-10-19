@@ -1,22 +1,23 @@
 package server;
 
+import java.util.Iterator;
 import java.io.FileReader;
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.net.InetAddress;
 import java.nio.channels.Pipe;
-import java.nio.channels.SelectionKey;
+import java.net.InetSocketAddress;
 import java.nio.channels.Selector;
-import java.nio.channels.ServerSocketChannel;
-import java.nio.channels.SocketChannel;
-import java.nio.channels.spi.SelectorProvider;
-import java.util.Iterator;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.nio.channels.SelectionKey;
+import java.util.concurrent.Executors;
+import java.nio.channels.SocketChannel;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.spi.SelectorProvider;
 import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
+import server.rmi.RemoteTask;
 import server.config.ServerConfig;
 
 public class ServerMain implements Runnable {
@@ -39,10 +40,10 @@ public class ServerMain implements Runnable {
 	private ByteBuffer readBuffer = ByteBuffer.allocate(BUF_DIM);
 
     // main-loop determinant
-    private boolean isStopping = false;
+    private static boolean isStopping = false;
 
-    // config object
-    private final ServerConfig config = ServerConfig.getServerConfig();
+    // generating the server's config object (contains all configuration fields)
+    public static final ServerConfig config = ServerConfig.getServerConfig();
     
 
 
@@ -67,7 +68,7 @@ public class ServerMain implements Runnable {
         this.managerChannel.configureBlocking(false);
 
         // setting up the listener socket
-        InetSocketAddress sockAddr = new InetSocketAddress(this.config.getAddr(), this.config.getPort());
+        InetSocketAddress sockAddr = new InetSocketAddress(config.getAddr(), config.getPort());
         this.managerChannel.socket().bind(sockAddr);
         
         // setting up the manager socket as an "accepting socket"
@@ -77,7 +78,7 @@ public class ServerMain implements Runnable {
         this.registrationPipe.source().configureBlocking(false);
         this.registrationPipe.source().register(this.selector, SelectionKey.OP_READ);
 
-        System.out.println("Server listening on "+this.config.getAddr()+':'+this.config.getPort());
+        System.out.println("Server listening on "+config.getAddr()+':'+config.getPort());
     }
 
 
@@ -148,13 +149,19 @@ public class ServerMain implements Runnable {
         this.workerPool.dispatchRequest(key, this.registrationPipe.sink(), data, bytesRead);
     }
 
+    
+    // returns information about the server's status
+    public static boolean isShuttingDown() {
+        return isStopping;
+    }
+
 
     // thread main function
     public void run() {
-        while(!(this.isStopping)) {
+        while(!(isStopping)) {
             try {
                 // waiting for the accepting channel to become readable
-                int timeLeft = this.selector.select(this.config.getTimeout());
+                int timeLeft = this.selector.select(config.getTimeout());
                 if(timeLeft == 0) continue; // re-try if timeout was reached
 
                 // iterate over the set of ready keys
@@ -174,8 +181,10 @@ public class ServerMain implements Runnable {
                         else this.readRequest(selKey);
                     }
                 }
-            } catch(Exception e) {
+            } catch(IOException e) {
+                System.err.println("Critical I/O failure");
                 e.printStackTrace();
+                System.exit(1);
             }
         }
     }
@@ -183,7 +192,8 @@ public class ServerMain implements Runnable {
 
 	public static void main(String[] args) {
         try {
-            new Thread(new ServerMain()).start();
+            new Thread(new ServerMain()).start();   // starting server's main thread
+            new Thread(new RemoteTask()).start();   // starting RMI thread
         } catch(IOException e) {
             e.printStackTrace();
             System.exit(1);
