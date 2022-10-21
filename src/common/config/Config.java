@@ -1,7 +1,6 @@
 package common.config;
 
 import java.net.InetAddress;
-import java.nio.file.Files;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 
@@ -33,14 +32,16 @@ public class Config {
     // returns a parsed config object
     public static Config getConfig() {
         Gson gson = new Gson();
-        JsonReader reader = null;
+        Config result = null;
+
         try {
-            reader = new JsonReader(new FileReader(configPath));
+            result = gson.fromJson(new JsonReader(new FileReader(configPath)), Config.class);
         } catch(FileNotFoundException e) {
             System.err.println("Config file not found");
             System.exit(1);
         }
-        return gson.fromJson(reader, Config.class);
+        
+        return result;
     }
 
     // getter

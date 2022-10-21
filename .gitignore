@@ -1,4 +1,7 @@
+storage
+
 instructions.txt
+*.class
 
 .*
 !.gitignore
