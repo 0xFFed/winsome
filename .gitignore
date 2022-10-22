@@ -1,5 +1,7 @@
 storage
 
+!server/storage
+
 instructions.txt
 *.class
 

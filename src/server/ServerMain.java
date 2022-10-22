@@ -1,7 +1,6 @@
 package server;
 
 import java.util.Iterator;
-import java.io.FileReader;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.net.InetAddress;
@@ -19,6 +18,9 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 import server.rmi.RemoteTask;
 import server.config.ServerConfig;
+import server.storage.Storage;
+import common.User;
+import common.Post;
 
 public class ServerMain implements Runnable {
 
@@ -26,6 +28,9 @@ public class ServerMain implements Runnable {
 
     // worker pool wrapper
     private ServerWorkerPool workerPool;
+
+    // rmi handler
+    Thread rmiHandler;
 	
 	// used for selection
 	private ServerSocketChannel managerChannel;
@@ -42,6 +47,11 @@ public class ServerMain implements Runnable {
     // main-loop determinant
     private static boolean isStopping = false;
 
+
+    // user-storage and post-storage objects
+    protected Storage<User> userStorage;
+    protected Storage<Post> postStorage;
+
     // generating the server's config object (contains all configuration fields)
     public static final ServerConfig config = ServerConfig.getServerConfig();
     
@@ -51,7 +61,9 @@ public class ServerMain implements Runnable {
 
     // constructor
     private ServerMain() throws IOException {
-        this.workerPool = new ServerWorkerPool();
+        this.userStorage = new Storage<>(config.getStoragePath(), config.getUserStoragePath());
+        this.postStorage = new Storage<>(config.getStoragePath(), config.getPostStoragePath());
+        this.workerPool = new ServerWorkerPool(this.userStorage, this.postStorage);
         this.registrationPipe = Pipe.open();
         this.startServer();
     }
@@ -78,6 +90,10 @@ public class ServerMain implements Runnable {
         this.registrationPipe.source().configureBlocking(false);
         this.registrationPipe.source().register(this.selector, SelectionKey.OP_READ);
 
+        // starting up the RMI handler thread
+        this.rmiHandler = new Thread(new RemoteTask(this.userStorage, this.postStorage));
+
+        // printing connection information
         System.out.println("Server listening on "+config.getAddr()+':'+config.getPort());
     }
 
@@ -193,7 +209,6 @@ public class ServerMain implements Runnable {
 	public static void main(String[] args) {
         try {
             new Thread(new ServerMain()).start();   // starting server's main thread
-            new Thread(new RemoteTask()).start();   // starting RMI thread
         } catch(IOException e) {
             e.printStackTrace();
             System.exit(1);

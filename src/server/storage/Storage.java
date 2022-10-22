@@ -4,12 +4,15 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.OpenOption;
+import java.nio.file.Paths;
 import java.security.Key;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.ConcurrentSkipListMap;
 
 import com.google.gson.Gson;
 import com.google.gson.stream.JsonReader;
@@ -23,102 +26,84 @@ public class Storage<T> {
     
     // ########## DATA ##########
 
-    // used to determine the type of storage
-    public enum StorageType {
-        USERS,
-        POSTS
-    }
-    private StorageType type;
-
-    private HashMap<String, T> data;
-    private String storagePath;
-    private ReentrantReadWriteLock lock;
-
-    private static String userPath = "users.json";
-    private static String postPath = "posts.json";
+    private ConcurrentHashMap<String, T> data;
+    private String storageDirPath;
+    private String storageFilePath;
 
 
     // ########## METHODS ##########
 
-    public Storage(String storagePath, StorageType storageType) throws IllegalArgumentException {
-        switch(storageType) {
-            case USERS:
-                this.type = StorageType.USERS;
-                this.storagePath = storagePath+userPath;
-                break;
-            case POSTS:
-                this.type = StorageType.POSTS;
-                this.storagePath = storagePath+postPath;
-                break;
-            default:
-                throw new IllegalArgumentException("Invalid storage type");
-        }
+    public Storage(String storageDirPath, String relativeFilePath) throws IOException, IllegalArgumentException, NullPointerException {
+        Objects.requireNonNull(storageDirPath, "null storage path: can't set storage");
+        Objects.requireNonNull(relativeFilePath, "null storage file path: can't set storage");
 
-        this.lock = new ReentrantReadWriteLock();
-        this.data = new HashMap<>();
-        this.read();
+        // setting the storage file path
+        this.storageDirPath = storageDirPath;
+
+        // creating storage directory if non-existing
+        File storageDir = new File(this.storageDirPath);
+        storageDir.mkdir();
+
+        // setting the storage file path
+        this.storageFilePath = storageDirPath+relativeFilePath;
+
+        // creating storage file if non-existing
+        File storageFile = new File(this.storageFilePath);
+        storageFile.createNewFile();
+
+        // loading users data from storage file
+        this.loadData();
+
+        System.out.println(this.data.mappingCount());
+        this.data.forEach((key, value) -> System.out.println(key));
     }
 
 
-    public synchronized void write() {
-        this.lock.writeLock().lock();
+    public void write() {
         Gson gson = new Gson();
-
-        try {
-            gson.toJson(this.data, new FileWriter(this.storagePath));
+        try(FileWriter writer = new FileWriter(this.storageFilePath)) {
+            String jsonText = gson.toJson(this.data);
+            writer.write(jsonText);
         } catch(IOException e) {
-            System.err.println("Error saving JSON file");
+            System.err.println("Error opening storage file (write-mode)");
+            e.printStackTrace();
+            System.exit(1);
+        }
+    }
+
+
+    private void loadData() {
+        Gson gson = new Gson();
+        
+        try(FileReader reader = new FileReader(this.storageFilePath)) {
+            this.data = gson.fromJson(new JsonReader(reader), ConcurrentHashMap.class);
+        } catch(IOException e) {
+            System.err.println("Error opening storage file (read-mode)");
             e.printStackTrace();
             System.exit(1);
         }
 
-        this.lock.writeLock().unlock();
+        if(this.data == null) this.data = new ConcurrentHashMap<>();
     }
 
 
-    private void read() {
-        this.lock.writeLock().lock();
-        if(!data.isEmpty()) this.write();
-        data.clear();
+    public boolean add(String key, T elem) throws NullPointerException {
+        Objects.requireNonNull(key, "Username cannot be null");
+        Objects.requireNonNull(elem, "User data cannot be null");
 
-        Gson gson = new Gson();
-        
-        try {
-            if(this.type==StorageType.USERS)
-                this.data = gson.fromJson(new JsonReader(new FileReader(this.storagePath)), User.class);
-            else
-                this.data = gson.fromJson(new JsonReader(new FileReader(this.storagePath)), Post.class);
-        } catch(IOException e) {
-            File storageFile = new File(this.storagePath);
-            try {
-                if(!storageFile.createNewFile()) {
-                    System.err.println("Error opening storage file");
-                    e.printStackTrace();
-                    System.exit(1);
-                }
-            } catch(IOException ex) {
-                System.err.println("Error creating storage file");
-                ex.printStackTrace();
-                System.exit(1);
-            }
+        boolean success;
+        if(this.data.putIfAbsent(key, elem) == null) {
+            success = true;
+            this.write();
         }
+        else success = false;
 
-        this.lock.writeLock().unlock();
-    }
-
-
-    public void add(String key, T elem) {
-        this.lock.writeLock().lock();
-        this.data.putIfAbsent(key, elem);
-        this.write();
-        this.lock.writeLock().unlock();
+        return success;
     }
 
 
     public void remove(String key) {
-        this.lock.writeLock().lock();
         this.data.remove(key);
         this.write();
-        this.lock.writeLock().unlock();
     }
 }

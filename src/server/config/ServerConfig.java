@@ -5,11 +5,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
 
 import com.google.gson.Gson;
-import com.google.gson.stream.JsonReader;
 
 import common.config.Config;
 
@@ -25,6 +23,12 @@ public class ServerConfig extends Config {
 
     // path to the storage folder
     private String storagePath;
+
+    // relative path to the users storage file
+    private String userStoragePath;
+
+    // relative path to the posts storage file
+    private String postStoragePath;
 
     // number of threads per core
     private int coreMultiplier;
@@ -71,6 +75,16 @@ public class ServerConfig extends Config {
     // getter
     public String getStoragePath() {
         return this.storagePath;
+    }
+
+    // getter
+    public String getUserStoragePath() {
+        return this.userStoragePath;
+    }
+
+    // getter
+    public String getPostStoragePath() {
+        return this.postStoragePath;
     }
 
     // getter

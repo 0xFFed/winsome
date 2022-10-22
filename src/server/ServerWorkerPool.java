@@ -9,7 +9,6 @@ import common.User;
 import common.Post;
 import server.config.ServerConfig;
 import server.storage.Storage;
-import server.storage.Storage.StorageType;
 import server.ServerMain;
 
 class ServerWorkerPool {
@@ -20,9 +19,10 @@ class ServerWorkerPool {
     private static final int CPUS = Runtime.getRuntime().availableProcessors();
     private ThreadPoolExecutor workerPool;
 
+
     // user-storage and post-storage objects
-    private Storage<User> userStorage;
-    private Storage<Post> postStorage;
+    protected Storage<User> userStorage;
+    protected Storage<Post> postStorage;
 
     private class ParsedRequest {
 
@@ -44,10 +44,10 @@ class ServerWorkerPool {
     // ########## METHODS #########
 
     // constructor
-    public ServerWorkerPool() {
+    public ServerWorkerPool(Storage<User> userStorage, Storage<Post> postStorage) {
+        this.userStorage = userStorage;
+        this.postStorage = postStorage;
         this.workerPool = (ThreadPoolExecutor)Executors.newFixedThreadPool(CPUS*ServerMain.config.getCoreMult());
-        this.userStorage = new Storage<>(ServerMain.config.getStoragePath(), Storage.StorageType.USERS);
-        this.postStorage = new Storage<>(ServerMain.config.getStoragePath(), Storage.StorageType.POSTS);
     }
 
 

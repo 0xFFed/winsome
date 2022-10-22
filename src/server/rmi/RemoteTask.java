@@ -8,17 +8,29 @@ import java.rmi.RemoteException;
 
 import server.ServerMain;
 import server.rmi.RemoteRegistration;
+import server.storage.Storage;
 import common.RemoteRegistrationInterface;
+import common.User;
+import common.Post;
 
 public class RemoteTask implements Runnable {
 
     private RemoteRegistration remoteRegistration;
     private RemoteRegistrationInterface stub;
     private Registry reg;
+
+
+    // user-storage and post-storage objects
+    protected Storage<User> userStorage;
+    protected Storage<Post> postStorage;
+
+
     
-    public RemoteTask() throws RemoteException {
+    public RemoteTask(Storage<User> userStorage, Storage<Post> postStorage) throws RemoteException {
+        this.userStorage = userStorage;
+        this.postStorage = postStorage;
         // generating and exposing the remote object
-        this.remoteRegistration = new RemoteRegistration();
+        this.remoteRegistration = new RemoteRegistration(this.userStorage, this.postStorage);
         this.stub = (RemoteRegistrationInterface) 
             UnicastRemoteObject.exportObject(this.remoteRegistration, ServerMain.config.getRmiPort());
         

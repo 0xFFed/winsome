@@ -1,5 +1,7 @@
 {
     "selTimeout": 500,
     "storagePath": "./storage/",
+    "userStoragePath": "users.json",
+    "postStoragePath": "posts.json",
     "coreMultiplier": 10
 }
