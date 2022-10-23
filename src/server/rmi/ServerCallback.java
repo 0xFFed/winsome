@@ -4,11 +4,14 @@ import java.rmi.RemoteException;
 import java.rmi.server.RemoteObject;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.UUID;
 
 import common.rmi.ClientCallbackInterface;
 import common.rmi.ServerCallbackInterface;
 
 public class ServerCallback extends RemoteObject implements ServerCallbackInterface {
+
+    private static final long serialVersionUID = 4640L;
 
     private ArrayList<ClientCallbackInterface> users;
 

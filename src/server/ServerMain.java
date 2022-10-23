@@ -1,11 +1,13 @@
 package server;
 
+import java.util.HashMap;
 import java.util.Iterator;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.net.InetAddress;
 import java.nio.channels.Pipe;
 import java.net.InetSocketAddress;
+import java.net.StandardSocketOptions;
 import java.nio.channels.Selector;
 import java.util.concurrent.Future;
 import java.nio.channels.SelectionKey;
@@ -20,6 +22,7 @@ import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import server.rmi.ServerCallback;
@@ -31,7 +34,7 @@ import common.Post;
 
 public class ServerMain implements Runnable {
 
-    // ########## DATA ##########
+    // ########## CONFIGURATION DATA ##########
 
     // worker pool wrapper
     private ServerWorkerPool workerPool;
@@ -55,6 +58,11 @@ public class ServerMain implements Runnable {
     public static AtomicBoolean isStopping = new AtomicBoolean();
 
 
+    // ########## SERVICE DATA ##########
+
+    // data structure mapping a logged in client's socket to their username
+    protected HashMap<String, String> loggedUsers;
+
     // user-storage and post-storage objects
     protected Storage<User> userStorage;
     protected Storage<Post> postStorage;
@@ -70,6 +78,7 @@ public class ServerMain implements Runnable {
     private ServerMain() throws IOException {
         this.userStorage = new Storage<>(config.getStoragePath(), config.getUserStoragePath());
         this.postStorage = new Storage<>(config.getStoragePath(), config.getPostStoragePath());
+        this.loggedUsers = new HashMap<>();
         this.callbackHandle = this.startCallback();
         this.workerPool = new ServerWorkerPool(this.userStorage, this.postStorage, this.callbackHandle);
         this.registrationPipe = Pipe.open();
@@ -113,6 +122,7 @@ public class ServerMain implements Runnable {
 
         // generating a socket for the client in non-blocking mode
         SocketChannel sockChannel = serverSockChannel.accept();
+        sockChannel.setOption(StandardSocketOptions.SO_KEEPALIVE, true);
         sockChannel.configureBlocking(false);
 
         // registering the new socket channel with the selector on the READ op
@@ -160,6 +170,7 @@ public class ServerMain implements Runnable {
 
         if(bytesRead < 0) {
             // the client disconnected, cancel the key and close the connection
+            System.out.println("Client disconnected");
             key.cancel();
             sockChannel.close();
             return;
