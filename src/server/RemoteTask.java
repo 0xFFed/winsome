@@ -1,13 +1,13 @@
-package server.rmi;
+package server;
 
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 
-import server.ServerMain;
 import server.rmi.RemoteRegistration;
 import server.storage.Storage;
 import common.RemoteRegistrationInterface;
@@ -48,7 +48,7 @@ public class RemoteTask implements Runnable {
     public void run() {
 
         try {   // keeping the thread alive until shutdown, then deallocating resources
-            while(!(ServerMain.isShuttingDown())) Thread.sleep(ServerMain.config.getTimeout());
+            while(!(ServerMain.isStopping.get())) Thread.sleep(ServerMain.config.getTimeout());
         } catch(InterruptedException e) {
             Thread.currentThread().interrupt();
         } finally {

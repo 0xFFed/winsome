@@ -1,6 +1,7 @@
 package client;
 
 import java.util.Iterator;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -28,7 +29,7 @@ public class ClientMain implements Runnable {
     private SocketChannel sock;
 
     // termination condition
-    private boolean isStopping = false;
+    protected static AtomicBoolean isStopping = new AtomicBoolean();
 
 
     // RMI object handle
@@ -82,16 +83,7 @@ public class ClientMain implements Runnable {
 
     // main thread main loop
     public void run() {
-        try {   // TODO remove
-            if(this.rmiRegistration.register("Dyxo", "omg", null)) System.out.println("Registration completed");
-            else System.out.println("User already exists");
-        } catch(RemoteException e) {
-            System.err.println("Error using the RMI registration method");
-            e.printStackTrace();
-            System.exit(1);
-        }
-        
-        while(!(this.isStopping)) {
+        while(!(isStopping.get())) {
             try {
                 Thread.sleep(500);
             } catch(InterruptedException e) {

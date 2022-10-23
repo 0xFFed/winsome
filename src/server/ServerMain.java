@@ -19,9 +19,9 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import server.rmi.RemoteTask;
 import server.rmi.ServerCallback;
 import server.config.ServerConfig;
 import server.storage.Storage;
@@ -52,7 +52,7 @@ public class ServerMain implements Runnable {
 	private ByteBuffer readBuffer = ByteBuffer.allocate(BUF_DIM);
 
     // main-loop determinant
-    private static boolean isStopping = false;
+    public static AtomicBoolean isStopping = new AtomicBoolean();
 
 
     // user-storage and post-storage objects
@@ -185,16 +185,10 @@ public class ServerMain implements Runnable {
         return rmiHandle;
     }
 
-    
-    // returns information about the server's status
-    public static boolean isShuttingDown() {
-        return isStopping;
-    }
-
 
     // thread main function
     public void run() {
-        while(!(isStopping)) {
+        while(!(isStopping.get())) {
             try {
                 // waiting for the accepting channel to become readable
                 int timeLeft = this.selector.select(config.getTimeout());

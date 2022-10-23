@@ -28,8 +28,7 @@ public class ServerCallback extends RemoteObject implements ServerCallbackInterf
         Iterator<ClientCallbackInterface> iter = users.iterator();
         while(iter.hasNext()) {
             ClientCallbackInterface client = iter.next();
-            client.notifyFollow("You have been notified!");
-            System.out.println("Clients notified");
+            client.notifyFollow("You have been notified!")
         }
     }
 }
