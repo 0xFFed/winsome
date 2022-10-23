@@ -16,10 +16,10 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 
-import common.ClientCallbackInterface;
-import common.RemoteRegistrationInterface;
-import common.ServerCallbackInterface;
 import common.config.Config;
+import common.rmi.ClientCallbackInterface;
+import common.rmi.RemoteRegistrationInterface;
+import common.rmi.ServerCallbackInterface;
 
 public class ClientMain implements Runnable {
 

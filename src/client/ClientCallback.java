@@ -3,7 +3,7 @@ package client;
 import java.rmi.RemoteException;
 import java.rmi.server.RemoteObject;
 
-import common.ClientCallbackInterface;
+import common.rmi.ClientCallbackInterface;
 
 public class ClientCallback extends RemoteObject implements ClientCallbackInterface {
     

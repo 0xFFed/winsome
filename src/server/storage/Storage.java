@@ -34,18 +34,15 @@ public class Storage<T> {
     // ########## METHODS ##########
 
     public Storage(String storageDirPath, String relativeFilePath) throws IOException, IllegalArgumentException, NullPointerException {
-        Objects.requireNonNull(storageDirPath, "null storage path: can't set storage");
-        Objects.requireNonNull(relativeFilePath, "null storage file path: can't set storage");
-
         // setting the storage file path
-        this.storageDirPath = storageDirPath;
+        this.storageDirPath = Objects.requireNonNull(storageDirPath, "null storage path: can't set storage");
 
         // creating storage directory if non-existing
         File storageDir = new File(this.storageDirPath);
         storageDir.mkdir();
 
         // setting the storage file path
-        this.storageFilePath = storageDirPath+relativeFilePath;
+        this.storageFilePath = storageDirPath+Objects.requireNonNull(relativeFilePath, "null storage file path: can't set storage");
 
         // creating storage file if non-existing
         File storageFile = new File(this.storageFilePath);
@@ -53,9 +50,6 @@ public class Storage<T> {
 
         // loading users data from storage file
         this.loadData();
-
-        System.out.println(this.data.mappingCount());
-        this.data.forEach((key, value) -> System.out.println(key));
     }
 
 

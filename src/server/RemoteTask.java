@@ -10,8 +10,8 @@ import java.rmi.RemoteException;
 
 import server.rmi.RemoteRegistration;
 import server.storage.Storage;
-import common.RemoteRegistrationInterface;
 import common.User;
+import common.rmi.RemoteRegistrationInterface;
 import common.Post;
 
 public class RemoteTask implements Runnable {

@@ -2,6 +2,7 @@ package server;
 
 import java.nio.channels.Pipe;
 import java.nio.channels.SelectionKey;
+import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.rmi.RemoteException;
@@ -50,9 +51,9 @@ class ServerWorkerPool {
 
     // constructor
     public ServerWorkerPool(Storage<User> userStorage, Storage<Post> postStorage, ServerCallback callbackHandle) {
-        this.userStorage = userStorage;
-        this.postStorage = postStorage;
-        this.callbackHandle = callbackHandle;
+        this.userStorage = Objects.requireNonNull(userStorage, "User storage cannot be null");
+        this.postStorage = Objects.requireNonNull(postStorage, "Post storage cannot be null");
+        this.callbackHandle = Objects.requireNonNull(callbackHandle, "callback object cannot be null");
         this.workerPool = (ThreadPoolExecutor)Executors.newFixedThreadPool(CPUS*ServerMain.config.getCoreMult());
     }
 

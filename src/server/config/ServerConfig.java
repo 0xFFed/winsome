@@ -37,7 +37,9 @@ public class ServerConfig extends Config {
     // ########## METHODS ##########
 
     // constructor
-    private ServerConfig() {}
+    private ServerConfig() {
+        super();
+    }
 
     // returns a parsed config object
     public static ServerConfig getServerConfig() {

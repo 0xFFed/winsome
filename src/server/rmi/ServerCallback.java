@@ -5,8 +5,8 @@ import java.rmi.server.RemoteObject;
 import java.util.ArrayList;
 import java.util.Iterator;
 
-import common.ClientCallbackInterface;
-import common.ServerCallbackInterface;
+import common.rmi.ClientCallbackInterface;
+import common.rmi.ServerCallbackInterface;
 
 public class ServerCallback extends RemoteObject implements ServerCallbackInterface {
 
@@ -28,7 +28,7 @@ public class ServerCallback extends RemoteObject implements ServerCallbackInterf
         Iterator<ClientCallbackInterface> iter = users.iterator();
         while(iter.hasNext()) {
             ClientCallbackInterface client = iter.next();
-            client.notifyFollow("You have been notified!")
+            client.notifyFollow("You have been notified!");
         }
     }
 }

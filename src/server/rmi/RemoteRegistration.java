@@ -1,9 +1,10 @@
 package server.rmi;
 
 import java.rmi.RemoteException;
+import java.util.Objects;
 
-import common.RemoteRegistrationInterface;
 import common.User;
+import common.rmi.RemoteRegistrationInterface;
 import common.Post;
 import server.storage.Storage;
 
@@ -15,8 +16,8 @@ public class RemoteRegistration implements RemoteRegistrationInterface {
 
 
     public RemoteRegistration(Storage<User> userStorage, Storage<Post> postStorage) throws RemoteException {
-        this.userStorage = userStorage;
-        this.postStorage = postStorage;
+        this.userStorage = Objects.requireNonNull(userStorage, "User storage cannot be null");
+        this.postStorage = Objects.requireNonNull(postStorage, "Post storage cannot be null");
     }
     
     public boolean register(String username, String password, String[] tags) throws RemoteException {

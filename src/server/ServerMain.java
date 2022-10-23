@@ -26,8 +26,8 @@ import server.rmi.ServerCallback;
 import server.config.ServerConfig;
 import server.storage.Storage;
 import common.User;
+import common.rmi.ServerCallbackInterface;
 import common.Post;
-import common.ServerCallbackInterface;
 
 public class ServerMain implements Runnable {
 
