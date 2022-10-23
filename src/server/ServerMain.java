@@ -13,14 +13,21 @@ import java.util.concurrent.Executors;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.spi.SelectorProvider;
+import java.rmi.AlreadyBoundException;
+import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
+import java.rmi.server.UnicastRemoteObject;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import server.rmi.RemoteTask;
+import server.rmi.ServerCallback;
 import server.config.ServerConfig;
 import server.storage.Storage;
 import common.User;
 import common.Post;
+import common.ServerCallbackInterface;
 
 public class ServerMain implements Runnable {
 
@@ -29,8 +36,8 @@ public class ServerMain implements Runnable {
     // worker pool wrapper
     private ServerWorkerPool workerPool;
 
-    // rmi handler
-    Thread rmiHandler;
+    // rmi callback handle
+    protected ServerCallback callbackHandle;
 	
 	// used for selection
 	private ServerSocketChannel managerChannel;
@@ -63,7 +70,8 @@ public class ServerMain implements Runnable {
     private ServerMain() throws IOException {
         this.userStorage = new Storage<>(config.getStoragePath(), config.getUserStoragePath());
         this.postStorage = new Storage<>(config.getStoragePath(), config.getPostStoragePath());
-        this.workerPool = new ServerWorkerPool(this.userStorage, this.postStorage);
+        this.callbackHandle = this.startCallback();
+        this.workerPool = new ServerWorkerPool(this.userStorage, this.postStorage, this.callbackHandle);
         this.registrationPipe = Pipe.open();
         this.startServer();
     }
@@ -91,7 +99,7 @@ public class ServerMain implements Runnable {
         this.registrationPipe.source().register(this.selector, SelectionKey.OP_READ);
 
         // starting up the RMI handler thread
-        this.rmiHandler = new Thread(new RemoteTask(this.userStorage, this.postStorage));
+        new Thread(new RemoteTask(this.userStorage, this.postStorage)).start();
 
         // printing connection information
         System.out.println("Server listening on "+config.getAddr()+':'+config.getPort());
@@ -163,6 +171,18 @@ public class ServerMain implements Runnable {
 
         // hand over the data read to a worker thread
         this.workerPool.dispatchRequest(key, this.registrationPipe.sink(), data, bytesRead);
+    }
+
+
+    // sets up the RMI callback service for follow/unfollow operations
+    public ServerCallback startCallback() throws RemoteException {
+        ServerCallback rmiHandle = new ServerCallback();
+        ServerCallbackInterface stub = (ServerCallbackInterface) UnicastRemoteObject.exportObject(rmiHandle, config.getCallbackPort());
+        LocateRegistry.createRegistry(config.getCallbackPort());
+        Registry reg = LocateRegistry.getRegistry(config.getCallbackPort());
+        reg.rebind(config.getCallbackName(), stub);
+
+        return rmiHandle;
     }
 
     

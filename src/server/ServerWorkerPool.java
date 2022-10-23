@@ -4,10 +4,12 @@ import java.nio.channels.Pipe;
 import java.nio.channels.SelectionKey;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
+import java.rmi.RemoteException;
 
 import common.User;
 import common.Post;
 import server.config.ServerConfig;
+import server.rmi.ServerCallback;
 import server.storage.Storage;
 import server.ServerMain;
 
@@ -23,6 +25,9 @@ class ServerWorkerPool {
     // user-storage and post-storage objects
     protected Storage<User> userStorage;
     protected Storage<Post> postStorage;
+
+    // handle for follow/unfollow callbacks
+    protected ServerCallback callbackHandle;
 
     private class ParsedRequest {
 
@@ -44,9 +49,10 @@ class ServerWorkerPool {
     // ########## METHODS #########
 
     // constructor
-    public ServerWorkerPool(Storage<User> userStorage, Storage<Post> postStorage) {
+    public ServerWorkerPool(Storage<User> userStorage, Storage<Post> postStorage, ServerCallback callbackHandle) {
         this.userStorage = userStorage;
         this.postStorage = postStorage;
+        this.callbackHandle = callbackHandle;
         this.workerPool = (ThreadPoolExecutor)Executors.newFixedThreadPool(CPUS*ServerMain.config.getCoreMult());
     }
 

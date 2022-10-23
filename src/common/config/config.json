@@ -3,5 +3,8 @@
     "serverPort": 3000,
     "rmiAddr": "127.0.0.1",
     "rmiPort": 3001,
-    "rmiName": "REMOTE-REGISTRATION"
+    "rmiName": "REMOTE-REGISTRATION",
+    "callbackAddr": "127.0.0.1",
+    "callbackPort": 3002,
+    "callbackName": "LOGIN-CALLBACK"
 }

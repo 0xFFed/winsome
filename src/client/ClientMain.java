@@ -13,8 +13,11 @@ import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.rmi.server.UnicastRemoteObject;
 
+import common.ClientCallbackInterface;
 import common.RemoteRegistrationInterface;
+import common.ServerCallbackInterface;
 import common.config.Config;
 
 public class ClientMain implements Runnable {
@@ -42,6 +45,7 @@ public class ClientMain implements Runnable {
     private ClientMain() throws IOException, NotBoundException {
         this.initConnection();
         this.rmiRegistration = this.rmiConnect();
+        this.registerCallback();
     }
 
 
@@ -63,6 +67,16 @@ public class ClientMain implements Runnable {
         Registry reg = LocateRegistry.getRegistry(config.getRmiAddr(), config.getRmiPort());
         stub = reg.lookup(config.getRmiName());
         return (RemoteRegistrationInterface) stub;
+    }
+
+
+    // registers for the follow/unfollow notification service
+    private void registerCallback() throws RemoteException,NotBoundException {
+        Registry reg = LocateRegistry.getRegistry(ClientMain.config.getCallbackPort());
+        ServerCallbackInterface server = (ServerCallbackInterface) reg.lookup(ClientMain.config.getCallbackName());
+        ClientCallbackInterface callbackObject = new ClientCallback();
+        ClientCallbackInterface stub = (ClientCallbackInterface) UnicastRemoteObject.exportObject(callbackObject, 0);
+        server.registerForCallback(stub);
     }
 
 

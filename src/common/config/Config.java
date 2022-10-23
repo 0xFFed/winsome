@@ -22,6 +22,9 @@ public class Config {
     private String rmiAddr;
     private int rmiPort;
     private String rmiName;
+    private String callbackAddr;
+    private int callbackPort;
+    private String callbackName;
 
 
     // ########## METHODS ##########
@@ -67,5 +70,20 @@ public class Config {
     // getter
     public String getRmiName() {
         return this.rmiName;
+    }
+
+    // getter
+    public String getCallbackAddr() {
+        return this.callbackAddr;
+    }
+
+    // getter
+    public int getCallbackPort() {
+        return this.callbackPort;
+    }
+
+    // getter
+    public String getCallbackName() {
+        return this.callbackName;
     }
 }
