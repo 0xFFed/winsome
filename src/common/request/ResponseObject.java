@@ -29,7 +29,7 @@ public class ResponseObject implements Serializable {
         this.token = token;
     }
 
-    public boolean hasFailed() {
+    public boolean isSuccess() {
         return this.success;
     }
 

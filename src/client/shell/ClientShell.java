@@ -16,6 +16,7 @@ import com.google.gson.stream.JsonReader;
 import common.User;
 import common.request.RequestObject;
 import common.request.ResponseObject;
+import common.request.ResponseObject.Result;
 import common.rmi.RemoteRegistrationInterface;
 
 public class ClientShell implements WinsomeInterface {
@@ -24,13 +25,13 @@ public class ClientShell implements WinsomeInterface {
     SocketChannel sock;
 
     // rmi registration service handler
-    protected RemoteRegistrationInterface rmiRegistration;
+    private RemoteRegistrationInterface rmiRegistration;
 
     // token identifying the user to the server
-    protected String authToken;
+    private String authToken;
 
     // keeps track of the connection status
-    protected boolean isConnected = false;
+    private boolean isLogged = false;
 
     // buffer to be used in NIO data exchanges
 	private static final int BUF_DIM = 8192;
@@ -43,6 +44,7 @@ public class ClientShell implements WinsomeInterface {
     public ClientShell(SocketChannel sock, RemoteRegistrationInterface rmiRegistration) {
         this.sock = Objects.requireNonNull(sock, "Socket cannot be null to communicate with server");
         this.rmiRegistration = Objects.requireNonNull(rmiRegistration, "RMI handler cannot be null");
+        this.authToken = null;
     }
 
 
@@ -74,6 +76,7 @@ public class ClientShell implements WinsomeInterface {
     }
 
 
+    // function used to read server response messages
     private ResponseObject readResponse() {
         this.readBuffer.clear();
 
@@ -109,20 +112,12 @@ public class ClientShell implements WinsomeInterface {
     }
 
 
-    // TODO IMPLEMENT
-    public ResponseObject register(String username, String password, String[] tags) throws RemoteException {
-        return this.rmiRegistration.register(username, password, tags);
-    }
-
-    public ResponseObject login(String username, String password) {
-        // creating the request object
-        String command = "login";
-        RequestObject request = new RequestObject(null, command, username, password, null, null, false);
-
+    // function used to send requests to the server
+    private void sendRequest(RequestObject request) {
         // making a JSON string out of the request
         Gson gson = new GsonBuilder().serializeNulls().create();
         String json = gson.toJson(request);
-        System.out.println(json);
+        System.out.println("DEBUG: "+json);
 
         try {
             // sending the request through the socket
@@ -131,16 +126,43 @@ public class ClientShell implements WinsomeInterface {
             System.err.println("The operation failed due to an I/O error. Quitting...");
             System.exit(1);
         }
+    }
+
+
+    public ResponseObject register(String username, String password, String[] tags) throws RemoteException {
+        if(this.isLogged) return new ResponseObject(Result.ERROR, "You are already logged in.", null);
+        return this.rmiRegistration.register(username, password, tags);
+    }
+
+    public ResponseObject login(String username, String password) {
+        String command = "login";
+        RequestObject request = new RequestObject(this.authToken, command, username, password, null, null, false);
+        this.sendRequest(request);
 
         ResponseObject response = readResponse();
-        if(!(response.hasFailed())) this.isConnected = true;
+        if(response.isSuccess()) {
+            this.isLogged = true;
+            this.authToken = response.getToken();
+        }
 
         return response;
     }
 
     public ResponseObject logout() {
-        this.isConnected = false;
-        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null);
+        // failing if the user is not logged
+        if(!this.isLogged) return new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in.", null);
+
+        String command = "logout";
+        RequestObject request = new RequestObject(this.authToken, command, null, null, null, null, false);
+        this.sendRequest(request);
+
+        ResponseObject response = readResponse();
+        if(response.isSuccess()) {
+            this.isLogged = false;
+            this.authToken = null;
+        }
+
+        return response;
     }
 
     public ResponseObject listUsers() {

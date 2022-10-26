@@ -18,12 +18,12 @@ public class RequestObject {
 
     
     public RequestObject(String token, String command, String username, String password, Post post, Comment comment, boolean vote) throws NullPointerException {
-        this.token = token;
+        if(Objects.isNull(token)) this.token =""; else this.token = token;
         this.command = Objects.requireNonNull(command, "a request's command cannot be null");
-        this.username = username;
-        this.password = password;
-        this.post = post;
-        this.comment = comment;
+        if(Objects.isNull(username)) this.username = ""; else this.username = username;
+        if(Objects.isNull(password)) this.password = ""; else this.password = password;
+        if(Objects.isNull(post)) this.post = new Post("", "", "", false); else this.post = post;
+        if(Objects.isNull(comment)) this.comment = new Comment("", ""); else this.comment = comment;
         this.vote= vote;
     }
 

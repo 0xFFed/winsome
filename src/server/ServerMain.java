@@ -2,6 +2,7 @@ package server;
 
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Objects;
 import java.util.Queue;
 import java.io.IOException;
 import java.io.Reader;
@@ -211,7 +212,7 @@ public class ServerMain implements Runnable {
 
         // extracting the JSON string representing the request from the buffer
         String jsonRequest = new String(data, StandardCharsets.UTF_8);
-        System.out.println("DEBUG: "+jsonRequest);    // TODO REMOVE
+        System.out.println("\nDEBUG: "+jsonRequest);    // TODO REMOVE
 
         // extracting a RequestObject from the JSON string and putting it in the task
         Gson gson = new GsonBuilder().serializeNulls().create();
@@ -244,8 +245,10 @@ public class ServerMain implements Runnable {
 
     // removes all references to the disconnected user
     private void disconnectUser(SocketChannel channel) {
-        this.loggedUsers.remove(this.connectedUsers.get(channel.toString()));
-        this.connectedUsers.remove(channel.toString());
+
+        if((Objects.nonNull(channel)) && (Objects.nonNull(this.connectedUsers.get(channel.toString())))) {
+            this.loggedUsers.remove(this.connectedUsers.remove(channel.toString()));
+        }
     }
 
 

@@ -61,6 +61,10 @@ class ServerWorker implements Runnable {
     private ServerCallback callbackHandle;
 
 
+    // stock message for write-fails
+    private static final String FAILED_WRITE = "Write operation failed";
+
+
     // ########## METHODS #########
 
     // constructor
@@ -97,10 +101,28 @@ class ServerWorker implements Runnable {
                 case "login":
                     this.login(task);
                     break;
+
+                case "logout":
+                    this.logout(task);
+                    break;
             
                 default:
+                    this.invalidCommand(task);
                     break;
             }
+        }
+    }
+
+
+    public void sendResponse(ResponseObject response, SocketChannel sock) {
+        Gson gson = new GsonBuilder().serializeNulls().create();
+        String jsonResponse = gson.toJson(response);
+        
+        try {
+            // sending the result through the socket
+            sock.write(ByteBuffer.wrap(jsonResponse.getBytes(StandardCharsets.UTF_8)));
+        } catch(IOException e) {
+            System.err.println(FAILED_WRITE);
         }
     }
 
@@ -111,7 +133,7 @@ class ServerWorker implements Runnable {
         RequestObject request = task.getRequest();
         SocketChannel sock = task.getSock();
         User user = this.serverStorage.getUserStorage().get(request.getUsername());
-        if(!(Objects.isNull(user))) {
+        if(Objects.nonNull(user)) {
             String providedPassword = "";
             
             try {
@@ -124,6 +146,17 @@ class ServerWorker implements Runnable {
             if(user.checkPassword(providedPassword)) {
                 // registering the client's auth token
                 String token = Cryptography.getSecureToken();
+                
+                // returning error if already logged
+                if(Objects.nonNull(this.connectedUsers.get(sock.toString()))) {
+                    
+                    // writing the response to the client
+                    ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are already logged in", null);
+                    sendResponse(response, sock);
+                    return;
+                }
+
+                // linking the client's socket to the auth token
                 this.connectedUsers.putIfAbsent(sock.toString(), token);
 
                 // linking the auth token to the authenticated user
@@ -131,78 +164,90 @@ class ServerWorker implements Runnable {
 
                 // writing the response to the client
                 ResponseObject response = new ResponseObject(ResponseObject.Result.SUCCESS, "Successfully logged in", token);
-                Gson gson = new GsonBuilder().serializeNulls().create();
-                String jsonResponse = gson.toJson(response);
-                
-                try {
-                    // sending the result through the socket
-                    sock.write(ByteBuffer.wrap(jsonResponse.getBytes(StandardCharsets.UTF_8)));
-                } catch(IOException e) {
-                    System.err.println("Write operation failed");
-                }
+                sendResponse(response, sock);
             }
             else {
                 // writing the response to the client
                 ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "Wrong password", null);
-                Gson gson = new GsonBuilder().serializeNulls().create();
-                String jsonResponse = gson.toJson(response);
-                
-                try {
-                    // sending the result through the socket
-                    sock.write(ByteBuffer.wrap(jsonResponse.getBytes(StandardCharsets.UTF_8)));
-                } catch(IOException e) {
-                    System.err.println("Write operation failed");
-                }
+                sendResponse(response, sock);
             }
         }
         else {
             // writing the response to the client
             ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "The user does not exist", null);
-            Gson gson = new GsonBuilder().serializeNulls().create();
-            String jsonResponse = gson.toJson(response);
+            sendResponse(response, sock);
+        }
+    }
+
+
+    private void logout(ServerTask task) {
+        RequestObject request = task.getRequest();
+        SocketChannel sock = task.getSock();
+        
+        // disconnecting the client
+        if(this.connectedUsers.get(sock.toString()).equals(request.getToken()) &&
+            Objects.nonNull(this.loggedUsers.get(this.connectedUsers.get(sock.toString())))) {
             
-            try {
-                // sending the result through the socket
-                sock.write(ByteBuffer.wrap(jsonResponse.getBytes(StandardCharsets.UTF_8)));
-            } catch(IOException e) {
-                System.err.println("Write operation failed");
-            }
+            // disconnecting and logging out the user
+            this.loggedUsers.remove(this.connectedUsers.remove(sock.toString()));
+
+            // sending success response
+            ResponseObject response = new ResponseObject(ResponseObject.Result.SUCCESS, "Successfully logged out", null);
+            sendResponse(response, sock);
+        }
+        else {
+            // the user was not logged in, sending error response
+            ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null);
+            sendResponse(response, sock);
         }
     }
 
     /*
+    private void listUsers(ServerTask task);
 
-    private void logout(RequestObject request);
+    private void listFollowers(ServerTask task);
 
-    private void listUsers(RequestObject request);
+    private void listFollowing(ServerTask task);
 
-    private void listFollowers(RequestObject request);
+    private void followUser(ServerTask task);
 
-    private void listFollowing(RequestObject request);
+    private void unfollowUser(ServerTask task);
 
-    private void followUser(RequestObject request);
+    private void viewBlog(ServerTask task);
 
-    private void unfollowUser(RequestObject request);
+    private void createPost(ServerTask task);
 
-    private void viewBlog(RequestObject request);
+    private void showFeed(ServerTask task);
 
-    private void createPost(RequestObject request);
+    private void showPost(ServerTask task);
 
-    private void showFeed(RequestObject request);
+    private void deletePost(ServerTask task);
 
-    private void showPost(RequestObject request);
+    private void rewinPost(ServerTask task);
 
-    private void deletePost(RequestObject request);
+    private void ratePost(ServerTask task);
 
-    private void rewinPost(RequestObject request);
+    private void addComment(ServerTask taskServerTask task);
 
-    private void ratePost(RequestObject request);
+    private void getWallet(ServerTask task);
 
-    private void addComment(RequestObject request);
-
-    private void getWallet(RequestObject request);
-
-    private void getWalletInBitcoin(RequestObject request);
+    private void getWalletInBitcoin(ServerTask task);
 
     */
+
+    private void invalidCommand(ServerTask task) {
+        SocketChannel sock = task.getSock();
+
+        // writing the response to the client
+        ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "Invalid command", null);
+        Gson gson = new GsonBuilder().serializeNulls().create();
+        String jsonResponse = gson.toJson(response);
+        
+        try {
+            // sending the result through the socket
+            sock.write(ByteBuffer.wrap(jsonResponse.getBytes(StandardCharsets.UTF_8)));
+        } catch(IOException e) {
+            System.err.println(FAILED_WRITE);
+        }
+    }
 }
