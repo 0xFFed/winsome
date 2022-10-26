@@ -99,15 +99,19 @@ class ServerWorker implements Runnable {
             // dispatching the request to the relative method
             switch (task.getRequest().getCommand()) {
                 case "login":
-                    this.login(task);
+                    this.login(task.getRequest(), task.getSock());
                     break;
 
                 case "logout":
-                    this.logout(task);
+                    this.logout(task.getRequest(), task.getSock());
+                    break;
+
+                case "list users":
+                    this.listUsers(task.getRequest(), task.getSock());
                     break;
             
                 default:
-                    this.invalidCommand(task);
+                    this.invalidCommand(task.getSock());
                     break;
             }
         }
@@ -129,9 +133,7 @@ class ServerWorker implements Runnable {
 
     // ########## REQUEST EXECUTION METHODS ##########
 
-    private void login(ServerTask task) {
-        RequestObject request = task.getRequest();
-        SocketChannel sock = task.getSock();
+    private void login(RequestObject request, SocketChannel sock) {
         User user = this.serverStorage.getUserStorage().get(request.getUsername());
         if(Objects.nonNull(user)) {
             String providedPassword = "";
@@ -148,7 +150,7 @@ class ServerWorker implements Runnable {
                 String token = Cryptography.getSecureToken();
                 
                 // returning error if already logged
-                if(Objects.nonNull(this.connectedUsers.get(sock.toString()))) {
+                if(Objects.nonNull(this.connectedUsers.get(sock.socket().toString()))) {
                     
                     // writing the response to the client
                     ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are already logged in", null);
@@ -157,7 +159,7 @@ class ServerWorker implements Runnable {
                 }
 
                 // linking the client's socket to the auth token
-                this.connectedUsers.putIfAbsent(sock.toString(), token);
+                this.connectedUsers.putIfAbsent(sock.socket().toString(), token);
 
                 // linking the auth token to the authenticated user
                 this.loggedUsers.putIfAbsent(token, user);
@@ -180,16 +182,14 @@ class ServerWorker implements Runnable {
     }
 
 
-    private void logout(ServerTask task) {
-        RequestObject request = task.getRequest();
-        SocketChannel sock = task.getSock();
+    private void logout(RequestObject request, SocketChannel sock) {
         
         // disconnecting the client
-        if(this.connectedUsers.get(sock.toString()).equals(request.getToken()) &&
-            Objects.nonNull(this.loggedUsers.get(this.connectedUsers.get(sock.toString())))) {
+        if(this.connectedUsers.get(sock.socket().toString()).equals(request.getToken()) &&
+            Objects.nonNull(this.loggedUsers.get(this.connectedUsers.get(sock.socket().toString())))) {
             
             // disconnecting and logging out the user
-            this.loggedUsers.remove(this.connectedUsers.remove(sock.toString()));
+            this.loggedUsers.remove(this.connectedUsers.remove(sock.socket().toString()));
 
             // sending success response
             ResponseObject response = new ResponseObject(ResponseObject.Result.SUCCESS, "Successfully logged out", null);
@@ -202,41 +202,44 @@ class ServerWorker implements Runnable {
         }
     }
 
+    
+    private void listUsers(RequestObject request, SocketChannel sock) {
+        User user = this.serverStorage.getUserStorage().get(request.getToken());
+        String[] userTags = user.getTags();
+    }
+
     /*
-    private void listUsers(ServerTask task);
+    private void listFollowers(RequestObject request, SocketChannel sock);
 
-    private void listFollowers(ServerTask task);
+    private void listFollowing(RequestObject request, SocketChannel sock);
 
-    private void listFollowing(ServerTask task);
+    private void followUser(RequestObject request, SocketChannel sock);
 
-    private void followUser(ServerTask task);
+    private void unfollowUser(RequestObject request, SocketChannel sock);
 
-    private void unfollowUser(ServerTask task);
+    private void viewBlog(RequestObject request, SocketChannel sock);
 
-    private void viewBlog(ServerTask task);
+    private void createPost(RequestObject request, SocketChannel sock);
 
-    private void createPost(ServerTask task);
+    private void showFeed(RequestObject request, SocketChannel sock);
 
-    private void showFeed(ServerTask task);
+    private void showPost(RequestObject request, SocketChannel sock);
 
-    private void showPost(ServerTask task);
+    private void deletePost(RequestObject request, SocketChannel sock);
 
-    private void deletePost(ServerTask task);
+    private void rewinPost(RequestObject request, SocketChannel sock);
 
-    private void rewinPost(ServerTask task);
+    private void ratePost(RequestObject request, SocketChannel sock);
 
-    private void ratePost(ServerTask task);
+    private void addComment(RequestObject request, SocketChannel sock);
 
-    private void addComment(ServerTask taskServerTask task);
+    private void getWallet(RequestObject request, SocketChannel sock);
 
-    private void getWallet(ServerTask task);
-
-    private void getWalletInBitcoin(ServerTask task);
+    private void getWalletInBitcoin(RequestObject request, SocketChannel sock);
 
     */
 
-    private void invalidCommand(ServerTask task) {
-        SocketChannel sock = task.getSock();
+    private void invalidCommand(SocketChannel sock) {
 
         // writing the response to the client
         ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "Invalid command", null);

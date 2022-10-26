@@ -31,6 +31,12 @@ public class ServerConfig extends Config {
     // relative path to the posts storage file
     private String postStoragePath;
 
+    // relative path to the user counter file
+    private String userCounterPath;
+
+    // relative path to the post counter file
+    private String postCounterPath;
+
     // number of threads per core
     private int coreMultiplier;
 
@@ -88,6 +94,16 @@ public class ServerConfig extends Config {
     // getter
     public String getPostStoragePath() {
         return this.postStoragePath;
+    }
+
+    // getter
+    public String getUserCounterPath() {
+        return this.userCounterPath;
+    }
+
+    // getter
+    public String getPostCounterPath() {
+        return this.postCounterPath;
     }
 
     // getter

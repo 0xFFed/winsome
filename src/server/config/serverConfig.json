@@ -3,5 +3,7 @@
     "storagePath": "./storage_dir/",
     "userStoragePath": "users.json",
     "postStoragePath": "posts.json",
+    "userCounterPath": "user_counter.json",
+    "postCounterPath": "post_counter.json",
     "coreMultiplier": 10
 }

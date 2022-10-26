@@ -1,20 +1,19 @@
 package common;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 
 public class Post {
     
     // ########## DATA ##########
 
-    private static int postId;
+    private static AtomicInteger counter = new AtomicInteger();
+    private int postId;
     private String title;
     private String content;
     private String author;
     private boolean isRewin;
-    private ArrayList<String> likes;
-    private ArrayList<Comment> comments;
+    private String[] likes;
+    private Comment[] comments;
 
 
     // ########## METHODS ##########
@@ -23,17 +22,18 @@ public class Post {
         Objects.requireNonNull(title, "title cannot be null");
         Objects.requireNonNull(content, "content cannot be null");
         Objects.requireNonNull(author, "author cannot be null");
-
-        // generate postId
         
         this.title = title;
         this.content = content;
         this.author = author;
         this.isRewin = isRewin;
-        this.likes = new ArrayList<>();
-        this.comments = new ArrayList<>();
     }
 
+
+    // getter
+    public int getPostId() {
+        return this.postId;
+    }
 
     // getter
     public String getTitle() {
@@ -56,12 +56,22 @@ public class Post {
     }
 
     // getter
-    public List<String> getLikes() {
+    public String[] getLikes() {
         return this.likes;
     }
 
     // getter
-    public List<Comment> getComments() {
+    public Comment[] getComments() {
         return this.comments;
+    }
+
+    // getter/setter
+    public static int incrementCounter() {
+        return counter.incrementAndGet();
+    }
+
+    // setter
+    public static void setCounter(int value) {
+        counter.set(value);
     }
 }

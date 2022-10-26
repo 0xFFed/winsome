@@ -192,7 +192,7 @@ public class ServerMain implements Runnable {
             bytesRead = sockChannel.read(this.readBuffer);
         } catch(IOException e) {
             // connection was dropped, cancel the key and close it on server's part
-            System.out.println("Client disconnected");
+            System.out.println("Client "+sockChannel.socket().toString()+" disconnected");
             this.disconnectUser(sockChannel);
             key.cancel();
             sockChannel.close();
@@ -246,8 +246,8 @@ public class ServerMain implements Runnable {
     // removes all references to the disconnected user
     private void disconnectUser(SocketChannel channel) {
 
-        if((Objects.nonNull(channel)) && (Objects.nonNull(this.connectedUsers.get(channel.toString())))) {
-            this.loggedUsers.remove(this.connectedUsers.remove(channel.toString()));
+        if((Objects.nonNull(channel)) && (Objects.nonNull(this.connectedUsers.get(channel.socket().toString())))) {
+            this.loggedUsers.remove(this.connectedUsers.remove(channel.socket().toString()));
         }
     }
 

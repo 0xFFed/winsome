@@ -142,7 +142,7 @@ public class ClientShell implements WinsomeInterface {
         ResponseObject response = readResponse();
         if(response.isSuccess()) {
             this.isLogged = true;
-            this.authToken = response.getToken();
+            this.authToken = response.getStringData();
         }
 
         return response;

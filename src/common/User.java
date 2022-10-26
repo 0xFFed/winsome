@@ -1,19 +1,18 @@
 package common;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 
 public class User {
 
     // ########## DATA ##########
 
-    private static int userId;
+    private static AtomicInteger counter = new AtomicInteger();
+    private int userId;
     private String username;
     private String password;
     private String[] tags;
-    private ArrayList<String> followers;
-    private ArrayList<String> followings;
+    private String[] followers;
+    private String[] followings;
     private int balance;
 
 
@@ -27,8 +26,6 @@ public class User {
         this.username = username;
         this.password = password;
         this.tags = tags;
-        this.followers = new ArrayList<>();
-        this.followings = new ArrayList<>();
         this.balance = 0;
     }
 
@@ -36,6 +33,10 @@ public class User {
     // checks if the password given is equal to the user's password
     public boolean checkPassword(String password) {
         return (this.password.equals(password));
+    }
+
+    public int getUserId() {
+        return this.userId;
     }
 
     // getter
@@ -49,17 +50,27 @@ public class User {
     }
 
     // getter
-    public List<String> getFollowers() {
+    public String[] getFollowers() {
         return this.followers;
     }
 
     // getter
-    public List<String> getFollowings() {
+    public String[] getFollowings() {
         return this.followings;
     }
 
     // getter
     public int getBalance() {
         return this.balance;
+    }
+
+    // getter
+    public static int incrementCounter() {
+        return counter.incrementAndGet();
+    }
+
+    // setter
+    public static void setCounter(int value) {
+        counter.set(value);
     }
 }

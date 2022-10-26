@@ -13,8 +13,8 @@ public class ResponseObject implements Serializable {
     // success/failure output message for the given command
     private String message;
 
-    // token returned at registration/login
-    private String token;
+    // stringData returned at registration/login
+    private String stringData;
 
     // enum for easy outcome determination
     public enum Result {
@@ -23,10 +23,10 @@ public class ResponseObject implements Serializable {
     }
 
 
-    public ResponseObject(Result result, String message, String token) {
+    public ResponseObject(Result result, String message, String stringData) {
         this.success = Objects.requireNonNull(result, "You must specify whether the requested operation failed or not") == Result.SUCCESS;
         this.message = Objects.requireNonNull(message, "You must provide a success/failure message for the request result");
-        this.token = token;
+        this.stringData = stringData;
     }
 
     public boolean isSuccess() {
@@ -37,8 +37,8 @@ public class ResponseObject implements Serializable {
         return this.message;
     }
 
-    public String getToken() {
-        return this.token;
+    public String getStringData() {
+        return this.stringData;
     }
 
     @Override
