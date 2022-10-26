@@ -1,7 +1,12 @@
 package common.request;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
+
+import common.Comment;
+import common.Post;
 
 public class ResponseObject implements Serializable {
 
@@ -13,8 +18,14 @@ public class ResponseObject implements Serializable {
     // success/failure output message for the given command
     private String message;
 
-    // stringData returned at registration/login
+    // string data returned at registration/login
     private String stringData;
+
+    // array of string data returned in various operations
+    private ArrayList<String> stringArray;
+
+    // array of Posts returned in various operations
+    private ArrayList<Post> postArray;
 
     // enum for easy outcome determination
     public enum Result {
@@ -23,10 +34,12 @@ public class ResponseObject implements Serializable {
     }
 
 
-    public ResponseObject(Result result, String message, String stringData) {
+    public ResponseObject(Result result, String message, String stringData, ArrayList<String> stringArray, ArrayList<Post> postArray) {
         this.success = Objects.requireNonNull(result, "You must specify whether the requested operation failed or not") == Result.SUCCESS;
         this.message = Objects.requireNonNull(message, "You must provide a success/failure message for the request result");
         this.stringData = stringData;
+        this.stringArray = stringArray;
+        this.postArray = postArray;
     }
 
     public boolean isSuccess() {
@@ -39,6 +52,14 @@ public class ResponseObject implements Serializable {
 
     public String getStringData() {
         return this.stringData;
+    }
+
+    public ArrayList<String> getStringArray() {
+        return this.stringArray;
+    }
+
+    public ArrayList<Post> getPostArray() {
+        return this.postArray;
     }
 
     @Override

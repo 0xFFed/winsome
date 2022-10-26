@@ -201,7 +201,7 @@ public class ServerMain implements Runnable {
 
         if(bytesRead < 0) {
             // the client disconnected, cancel the key and close the connection
-            System.out.println("Client disconnected");
+            System.out.println("Client "+sockChannel.socket().toString()+" disconnected");
             this.disconnectUser(sockChannel);
             key.cancel();
             sockChannel.close();

@@ -49,7 +49,7 @@ public class Storage<T> {
     }
 
 
-    public void write() {
+    public synchronized void write() {
         Gson gson = new GsonBuilder().serializeNulls().create();
         try(FileWriter writer = new FileWriter(this.storageFilePath)) {
             String jsonText = gson.toJson(this.data);

@@ -7,6 +7,9 @@ import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.rmi.RemoteException;
 import java.io.StringReader;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 
 import com.google.gson.Gson;
@@ -41,6 +44,11 @@ public class ClientShell implements WinsomeInterface {
     // max number of arguments for the register call
     private static final int MAX_REG_ARGS = 5;
 
+    // macros for recurrent error messages
+    private static final String NOT_LOGGED = "You are not logged in";
+    private static final String TOO_MANY = "Too many arguments";
+    private static final String INVALID = "Invalid command";
+
     public ClientShell(SocketChannel sock, RemoteRegistrationInterface rmiRegistration) {
         this.sock = Objects.requireNonNull(sock, "Socket cannot be null to communicate with server");
         this.rmiRegistration = Objects.requireNonNull(rmiRegistration, "RMI handler cannot be null");
@@ -51,33 +59,52 @@ public class ClientShell implements WinsomeInterface {
     // function used to parse given commands
     public ResponseObject parseCommand(String command, String[] args) throws RemoteException {
         Objects.requireNonNull(command, "command cannot be null");
+        System.out.println("DEBUG: "+command);
 
         switch (command) {
             case "register":
-                if(args == null || args.length < 2) return new ResponseObject(ResponseObject.Result.ERROR, "Username and Password are needed", null);
+                if(args == null || args.length < 2) return new ResponseObject(ResponseObject.Result.ERROR, "Username and Password are needed", null, null, null);
                 String[] tags = new String[args.length-2];
-                if(args.length > (2+MAX_REG_ARGS)) return new ResponseObject(ResponseObject.Result.ERROR, "You can only add up to 5 tags", null);
+                if(args.length > (2+MAX_REG_ARGS)) return new ResponseObject(ResponseObject.Result.ERROR, "You can only add up to 5 tags", null, null, null);
                 if(args.length > 2) System.arraycopy(args, 2, tags, 0, (args.length-2));
                 return this.register(args[0], args[1], tags);
             
             case "login":
-                if(args == null || args.length < 2) return new ResponseObject(ResponseObject.Result.ERROR, "Username and Password are needed", null);
-                if(args.length > 2) return new ResponseObject(ResponseObject.Result.ERROR, "Too many arguments", null);
+                if(args == null || args.length < 2) return new ResponseObject(ResponseObject.Result.ERROR, "Username and Password are needed", null, null, null);
+                if(args.length > 2) return new ResponseObject(ResponseObject.Result.ERROR, TOO_MANY, null, null, null);
                 return this.login(args[0], args[1]);
                 
 
             case "logout":
                 return this.logout();
+
+            case "list":
+                if(args == null || args.length == 0) return new ResponseObject(ResponseObject.Result.ERROR, "Incomplete command", null, null, null);
+                if(args.length > 1) return new ResponseObject(ResponseObject.Result.ERROR, "Invalid command", null, null, null);
+                if(args[0].equals("users")) return this.listUsers();
+                break;
+
+            case "follow":
+                if(args == null || args.length == 0) return new ResponseObject(ResponseObject.Result.ERROR, "Username of the user to follow is needed", null, null, null);
+                if(args.length > 1) return new ResponseObject(ResponseObject.Result.ERROR, TOO_MANY, null, null, null);
+                return this.followUser(args[0]);
+
+            case "unfollow":
+                if(args == null || args.length == 0) return new ResponseObject(ResponseObject.Result.ERROR, "Username of the user to unfollow is needed", null, null, null);
+                if(args.length > 1) return new ResponseObject(ResponseObject.Result.ERROR, TOO_MANY, null, null, null);
+                return this.unfollowUser(args[0]);
+
             default:
                 break;
         }
 
-        return new ResponseObject(ResponseObject.Result.ERROR, "Invalid command", null);
+        return new ResponseObject(ResponseObject.Result.ERROR, "Invalid command", null, null, null);
     }
 
 
     // function used to read server response messages
     private ResponseObject readResponse() {
+
         this.readBuffer.clear();
 
         // reading from the socket channel
@@ -130,8 +157,9 @@ public class ClientShell implements WinsomeInterface {
 
 
     public ResponseObject register(String username, String password, String[] tags) throws RemoteException {
-        if(this.isLogged) return new ResponseObject(Result.ERROR, "You are already logged in.", null);
-        return this.rmiRegistration.register(username, password, tags);
+        if(this.isLogged) return new ResponseObject(Result.ERROR, "You are already logged in.", null, null, null);
+        ArrayList<String> tagsList = new ArrayList<>(Arrays.asList(tags));
+        return this.rmiRegistration.register(username, password, tagsList);
     }
 
     public ResponseObject login(String username, String password) {
@@ -150,7 +178,7 @@ public class ClientShell implements WinsomeInterface {
 
     public ResponseObject logout() {
         // failing if the user is not logged
-        if(!this.isLogged) return new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in.", null);
+        if(!this.isLogged) return new ResponseObject(ResponseObject.Result.ERROR, NOT_LOGGED, null, null, null);
 
         String command = "logout";
         RequestObject request = new RequestObject(this.authToken, command, null, null, null, null, false);
@@ -166,63 +194,86 @@ public class ClientShell implements WinsomeInterface {
     }
 
     public ResponseObject listUsers() {
-        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null);
+        // failing if the user is not logged
+        if(!this.isLogged) return new ResponseObject(ResponseObject.Result.ERROR, NOT_LOGGED, null, null, null);
+
+        String command = "list users";
+        RequestObject request = new RequestObject(this.authToken, command, null, null, null, null, false);
+        this.sendRequest(request);
+
+        ResponseObject response = readResponse();
+
+        return response;
     }
 
     public ResponseObject listFollowers() {
-        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null);
+        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null, null, null);
     }
 
     public ResponseObject listFollowing() {
-        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null);
+        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null, null, null);
     }
 
     public ResponseObject followUser(String userId) {
-        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null);
+        // failing if the user is not logged
+        if(!this.isLogged) return new ResponseObject(ResponseObject.Result.ERROR, NOT_LOGGED, null, null, null);
+
+        String command = "follow";
+        RequestObject request = new RequestObject(this.authToken, command, userId, null, null, null, false);
+        sendRequest(request);
+
+        return readResponse();
     }
 
     public ResponseObject unfollowUser(String userId) {
-        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null);
+        // failing if the user is not logged
+        if(!this.isLogged) return new ResponseObject(ResponseObject.Result.ERROR, NOT_LOGGED, null, null, null);
+
+        String command = "unfollow";
+        RequestObject request = new RequestObject(this.authToken, command, userId, null, null, null, false);
+        sendRequest(request);
+
+        return readResponse();
     }
 
     public ResponseObject viewBlog() {
-        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null);
+        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null, null, null);
     }
 
     public ResponseObject createPost(String title, String content) {
-        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null);
+        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null, null, null);
     }
 
     public ResponseObject showFeed() {
-        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null);
+        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null, null, null);
     }
 
     public ResponseObject showPost(String postId) {
-        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null);
+        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null, null, null);
     }
 
     public ResponseObject deletePost(String postId) {
-        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null);
+        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null, null, null);
     }
 
     public ResponseObject rewinPost(String postId) {
-        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null);
+        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null, null, null);
     }
 
     public ResponseObject ratePost(String postId) {
-        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null);
+        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null, null, null);
     }
 
     public ResponseObject addComment(String postId, String comment) {
-        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null);
+        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null, null, null);
     }
 
     public ResponseObject getWallet() {
-        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null);
+        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null, null, null);
     }
 
     public ResponseObject getWalletInBitcoin() {
-        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null);
+        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null, null, null);
     }
 
 }

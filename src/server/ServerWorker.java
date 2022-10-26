@@ -3,7 +3,11 @@ package server;
 import java.nio.channels.Pipe;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.Executors;
@@ -14,6 +18,7 @@ import java.rmi.RemoteException;
 import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.io.IOException;
@@ -109,6 +114,14 @@ class ServerWorker implements Runnable {
                 case "list users":
                     this.listUsers(task.getRequest(), task.getSock());
                     break;
+
+                case "follow":
+                    this.followUser(task.getRequest(), task.getSock());
+                    break;
+
+                case "unfollow":
+                    this.unfollowUser(task.getRequest(), task.getSock());
+                    break;
             
                 default:
                     this.invalidCommand(task.getSock());
@@ -153,7 +166,7 @@ class ServerWorker implements Runnable {
                 if(Objects.nonNull(this.connectedUsers.get(sock.socket().toString()))) {
                     
                     // writing the response to the client
-                    ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are already logged in", null);
+                    ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are already logged in", null, null, null);
                     sendResponse(response, sock);
                     return;
                 }
@@ -165,18 +178,18 @@ class ServerWorker implements Runnable {
                 this.loggedUsers.putIfAbsent(token, user);
 
                 // writing the response to the client
-                ResponseObject response = new ResponseObject(ResponseObject.Result.SUCCESS, "Successfully logged in", token);
+                ResponseObject response = new ResponseObject(ResponseObject.Result.SUCCESS, "Successfully logged in", token, null, null);
                 sendResponse(response, sock);
             }
             else {
                 // writing the response to the client
-                ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "Wrong password", null);
+                ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "Wrong password", null, null, null);
                 sendResponse(response, sock);
             }
         }
         else {
             // writing the response to the client
-            ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "The user does not exist", null);
+            ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "The user does not exist", null, null, null);
             sendResponse(response, sock);
         }
     }
@@ -192,31 +205,141 @@ class ServerWorker implements Runnable {
             this.loggedUsers.remove(this.connectedUsers.remove(sock.socket().toString()));
 
             // sending success response
-            ResponseObject response = new ResponseObject(ResponseObject.Result.SUCCESS, "Successfully logged out", null);
+            ResponseObject response = new ResponseObject(ResponseObject.Result.SUCCESS, "Successfully logged out", null, null, null);
             sendResponse(response, sock);
         }
         else {
             // the user was not logged in, sending error response
-            ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null);
+            ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
             sendResponse(response, sock);
         }
     }
 
     
     private void listUsers(RequestObject request, SocketChannel sock) {
-        User user = this.serverStorage.getUserStorage().get(request.getToken());
-        String[] userTags = user.getTags();
+        User user = this.loggedUsers.get(request.getToken());
+
+        if(Objects.isNull(user)) {
+            ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
+            sendResponse(response, sock);
+            return;
+        }
+
+        List<String> userTags = user.getTags();
+        List<User> selectedUsers = new ArrayList<>();
+
+        Iterator<User> userIter = this.serverStorage.getUserStorage().getUserSet().iterator();
+        while(!(userTags.isEmpty()) && userIter.hasNext()) {
+            User currUser = userIter.next();
+            if(user.getUsername().equals(currUser.getUsername())) continue;
+            for (String tag : currUser.getTags()) {
+                if (userTags.contains(tag)) {
+                    selectedUsers.add(currUser);
+                    break;
+                }
+            }
+        }
+
+        ArrayList<String> result = new ArrayList<>();
+
+        Iterator<User> tempResult = selectedUsers.iterator();
+        while(!(userTags.isEmpty()) && tempResult.hasNext()) {
+            User currUser = tempResult.next();
+            result.add(currUser.getUsername());
+        }
+
+        ResponseObject response = new ResponseObject(ResponseObject.Result.SUCCESS, "Users sharing your tags: "+String.join(", ", result), null, result, null);
+        sendResponse(response, sock);
     }
 
     /*
     private void listFollowers(RequestObject request, SocketChannel sock);
 
-    private void listFollowing(RequestObject request, SocketChannel sock);
+    */
 
-    private void followUser(RequestObject request, SocketChannel sock);
+    private void listFollowing(RequestObject request, SocketChannel sock) {
+        User user = this.loggedUsers.get(request.getToken());
 
-    private void unfollowUser(RequestObject request, SocketChannel sock);
+        if(Objects.isNull(user)) {
+            ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
+            sendResponse(response, sock);
+            return;
+        }
+    }
 
+    
+    private void followUser(RequestObject request, SocketChannel sock) {
+        User user = this.loggedUsers.get(request.getToken());
+
+        if(Objects.isNull(user)) {
+            ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
+            sendResponse(response, sock);
+            return;
+        }
+
+        User userToFollow = this.serverStorage.getUserStorage().get(request.getUsername());
+        if(Objects.isNull(userToFollow)) {
+            ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "The specified user does not exist", null, null, null);
+            sendResponse(response, sock);
+            return;
+        }
+
+        if(user.getUsername().equals(userToFollow.getUsername())) {
+            ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You cannot follow yourself", null, null, null);
+            sendResponse(response, sock);
+            return;
+        }
+
+        boolean success = userToFollow.addFollower(user);
+
+        if(success) {
+            this.serverStorage.getUserStorage().write();
+            ResponseObject response = new ResponseObject(ResponseObject.Result.SUCCESS, "You are now following "+request.getUsername(), null, null, null);
+            sendResponse(response, sock);
+        }
+        else {
+            ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are already following "+request.getUsername(), null, null, null);
+            sendResponse(response, sock);
+        }
+
+    }
+
+    private void unfollowUser(RequestObject request, SocketChannel sock) {
+        User user = this.loggedUsers.get(request.getToken());
+
+        if(Objects.isNull(user)) {
+            ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
+            sendResponse(response, sock);
+            return;
+        }
+
+        User userToUnfollow = this.serverStorage.getUserStorage().get(request.getUsername());
+        if(Objects.isNull(userToUnfollow)) {
+            ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "The specified user does not exist", null, null, null);
+            sendResponse(response, sock);
+            return;
+        }
+
+        if(user.getUsername().equals(userToUnfollow.getUsername())) {
+            ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You cannot unfollow yourself", null, null, null);
+            sendResponse(response, sock);
+            return;
+        }
+
+        boolean success = userToUnfollow.removeFollower(user);
+
+        if(success) {
+            this.serverStorage.getUserStorage().write();
+            ResponseObject response = new ResponseObject(ResponseObject.Result.SUCCESS, "You are no longer following "+request.getUsername(), null, null, null);
+            sendResponse(response, sock);
+        }
+        else {
+            ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You were not following "+request.getUsername(), null, null, null);
+            sendResponse(response, sock);
+        }
+    }
+
+    /*
     private void viewBlog(RequestObject request, SocketChannel sock);
 
     private void createPost(RequestObject request, SocketChannel sock);
@@ -242,7 +365,7 @@ class ServerWorker implements Runnable {
     private void invalidCommand(SocketChannel sock) {
 
         // writing the response to the client
-        ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "Invalid command", null);
+        ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "Invalid command", null, null, null);
         Gson gson = new GsonBuilder().serializeNulls().create();
         String jsonResponse = gson.toJson(response);
         

@@ -2,6 +2,7 @@ package server.rmi;
 
 import java.rmi.RemoteException;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.Objects;
 
 import common.User;
@@ -22,7 +23,7 @@ public class RemoteRegistration implements RemoteRegistrationInterface {
         this.serverStorage = Objects.requireNonNull(serverStorage, "Server storage cannot be null");
     }
     
-    public ResponseObject register(String username, String password, String[] tags) throws RemoteException {
+    public ResponseObject register(String username, String password, ArrayList<String> tags) throws RemoteException {
         boolean success = false;
 
         try {
@@ -32,7 +33,7 @@ public class RemoteRegistration implements RemoteRegistrationInterface {
             System.exit(1);
         }
 
-        if(success) return new ResponseObject(ResponseObject.Result.SUCCESS, "Registration successful", null);
-        else return new ResponseObject(ResponseObject.Result.ERROR, "User already exists", null);
+        if(success) return new ResponseObject(ResponseObject.Result.SUCCESS, "Registration successful", null, null, null);
+        else return new ResponseObject(ResponseObject.Result.ERROR, "User already exists", null, null, null);
     }
 }

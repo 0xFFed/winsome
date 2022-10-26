@@ -5,7 +5,9 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -46,7 +48,6 @@ public class PostStorage extends Storage<Post> {
         try {
             File counterFile = new File(this.counterFilePath);
             counterFile.createNewFile();
-            System.out.println("DEBUG: "+counterFile);  // TODO REMOVE
         } catch(IOException e) {
             System.err.println("Critical failure: storage corrupted");
             System.exit(1);
@@ -107,9 +108,14 @@ public class PostStorage extends Storage<Post> {
     }
 
 
+    // getter
+    public List<Post> getPostSet() {
+        return new ArrayList<>(this.data.values());
+    }
+
+
     @Override
     public synchronized boolean add(String key, Post elem) throws NullPointerException {
-        System.out.println("New user created.");
         boolean result = super.add(key, elem);
         if(result) {
             this.updateCounterFile();

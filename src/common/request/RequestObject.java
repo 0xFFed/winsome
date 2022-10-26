@@ -22,7 +22,7 @@ public class RequestObject {
         this.command = Objects.requireNonNull(command, "a request's command cannot be null");
         if(Objects.isNull(username)) this.username = ""; else this.username = username;
         if(Objects.isNull(password)) this.password = ""; else this.password = password;
-        if(Objects.isNull(post)) this.post = new Post("", "", "", false); else this.post = post;
+        if(Objects.isNull(post)) this.post = new Post("", "", "", "", false); else this.post = post;
         if(Objects.isNull(comment)) this.comment = new Comment("", ""); else this.comment = comment;
         this.vote= vote;
     }

@@ -1,6 +1,10 @@
 package common;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class User {
 
@@ -10,19 +14,20 @@ public class User {
     private int userId;
     private String username;
     private String password;
-    private String[] tags;
-    private String[] followers;
-    private String[] followings;
+    private ArrayList<String> tags = new ArrayList<>();
+    private ArrayList<String> followers = new ArrayList<>();
+    private ArrayList<String> followings = new ArrayList<>();
     private int balance;
 
 
     // ########## METHODS ##########
 
     // constructor
-    public User(String username, String password, String[] tags) throws NullPointerException {
+    public User(String username, String password, ArrayList<String> tags) throws NullPointerException {
         Objects.requireNonNull(username, "username cannot be null");
         Objects.requireNonNull(password, "password cannot be null");
-        
+
+        this.userId = counter.get();
         this.username = username;
         this.password = password;
         this.tags = tags;
@@ -45,17 +50,17 @@ public class User {
     }
 
     // getter
-    public String[] getTags() {
+    public ArrayList<String> getTags() {
         return this.tags;
     }
 
     // getter
-    public String[] getFollowers() {
+    public ArrayList<String> getFollowers() {
         return this.followers;
     }
 
     // getter
-    public String[] getFollowings() {
+    public ArrayList<String> getFollowings() {
         return this.followings;
     }
 
@@ -72,5 +77,19 @@ public class User {
     // setter
     public static void setCounter(int value) {
         counter.set(value);
+    }
+
+
+    // ########## UTILITY FUNCTIONS ##########
+
+    // adds a follower to the user; returns true if it wasn't already a follower
+    public boolean addFollower(User follower) {
+        if(this.followers.contains(follower.getUsername())) return false;
+        else return this.followers.add(follower.getUsername());
+    }
+
+    // removes a follower from the user; returns true if it was already a follower
+    public boolean removeFollower(User unfollower) {
+        return this.followers.remove(unfollower.getUsername());
     }
 }
