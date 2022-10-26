@@ -3,9 +3,9 @@ package common.rmi;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 
-import common.request.ResultObject;
+import common.request.ResponseObject;
 
 public interface RemoteRegistrationInterface extends Remote {
     
-    public ResultObject register(String username, String password, String[] tags) throws RemoteException;
+    public ResponseObject register(String username, String password, String[] tags) throws RemoteException;
 }

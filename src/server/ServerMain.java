@@ -2,7 +2,10 @@ package server;
 
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Queue;
 import java.io.IOException;
+import java.io.Reader;
+import java.io.StringReader;
 import java.nio.ByteBuffer;
 import java.net.InetAddress;
 import java.nio.channels.Pipe;
@@ -10,11 +13,13 @@ import java.net.InetSocketAddress;
 import java.net.StandardSocketOptions;
 import java.nio.channels.Selector;
 import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.nio.channels.SelectionKey;
 import java.util.concurrent.Executors;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.spi.SelectorProvider;
+import java.nio.charset.StandardCharsets;
 import java.rmi.AlreadyBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
@@ -22,22 +27,29 @@ import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentMap;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.stream.JsonReader;
 
 import server.rmi.ServerCallback;
 import server.config.ServerConfig;
+import server.storage.PostStorage;
+import server.storage.ServerStorage;
 import server.storage.Storage;
+import server.storage.UserStorage;
 import common.User;
+import common.request.RequestObject;
 import common.rmi.ServerCallbackInterface;
 import common.Post;
 
 public class ServerMain implements Runnable {
 
     // ########## CONFIGURATION DATA ##########
-
-    // worker pool wrapper
-    private ServerWorkerPool workerPool;
 
     // rmi callback handle
     protected ServerCallback callbackHandle;
@@ -48,7 +60,7 @@ public class ServerMain implements Runnable {
 
     // used for switching channel mode between OP_READ and OP_WRITE
     private Pipe registrationPipe;
-    private ConcurrentLinkedQueue<WritingTask> registrationQueue;
+    private Queue<WritingTask> registrationQueue;
 	
 	// buffer to be used in NIO data exchanges
 	private static final int BUF_DIM = 8192;
@@ -60,12 +72,17 @@ public class ServerMain implements Runnable {
 
     // ########## SERVICE DATA ##########
 
-    // data structure mapping a logged in client's socket to their username
-    protected HashMap<String, String> loggedUsers;
+    // map linking a connected client's socket to their auth token
+    protected ConcurrentMap<String, String> connectedUsers;
 
-    // user-storage and post-storage objects
-    protected Storage<User> userStorage;
-    protected Storage<Post> postStorage;
+    // map linking a logged in client's auth token to their user profile
+    protected ConcurrentMap<String, User> loggedUsers;
+
+    // concurrent queue used to transfer tasks to the workers
+    BlockingQueue<ServerTask> taskQueue;
+
+    // server-storage object
+    protected ServerStorage serverStorage;
 
     // generating the server's config object (contains all configuration fields)
     public static final ServerConfig config = ServerConfig.getServerConfig();
@@ -76,13 +93,15 @@ public class ServerMain implements Runnable {
 
     // constructor
     private ServerMain() throws IOException {
-        this.userStorage = new Storage<>(config.getStoragePath(), config.getUserStoragePath());
-        this.postStorage = new Storage<>(config.getStoragePath(), config.getPostStoragePath());
-        this.loggedUsers = new HashMap<>();
-        this.callbackHandle = this.startCallback();
-        this.workerPool = new ServerWorkerPool(this.userStorage, this.postStorage, this.callbackHandle);
+        this.serverStorage = new ServerStorage(
+            new UserStorage(config.getStoragePath(), config.getUserStoragePath()),
+            new PostStorage(config.getStoragePath(), config.getPostStoragePath()));
+        this.registrationQueue = new ConcurrentLinkedQueue<>();
+        this.taskQueue = new LinkedBlockingQueue<>();
+        this.connectedUsers = new ConcurrentHashMap<>();
+        this.loggedUsers = new ConcurrentHashMap<>();
         this.registrationPipe = Pipe.open();
-        this.startServer();
+        this.callbackHandle = this.startCallback();
     }
 
 
@@ -108,7 +127,16 @@ public class ServerMain implements Runnable {
         this.registrationPipe.source().register(this.selector, SelectionKey.OP_READ);
 
         // starting up the RMI handler thread
-        new Thread(new RemoteTask(this.userStorage, this.postStorage)).start();
+        new Thread(new RemoteTask(this.serverStorage)).start();
+
+        // starting the worker thread
+        new Thread(new ServerWorker(this.serverStorage,
+            this.callbackHandle,
+            this.registrationPipe.sink(),
+            this.taskQueue,
+            this.registrationQueue,
+            this.connectedUsers,
+            this.loggedUsers)).start();
 
         // printing connection information
         System.out.println("Server listening on "+config.getAddr()+':'+config.getPort());
@@ -163,6 +191,8 @@ public class ServerMain implements Runnable {
             bytesRead = sockChannel.read(this.readBuffer);
         } catch(IOException e) {
             // connection was dropped, cancel the key and close it on server's part
+            System.out.println("Client disconnected");
+            this.disconnectUser(sockChannel);
             key.cancel();
             sockChannel.close();
             return;
@@ -171,17 +201,32 @@ public class ServerMain implements Runnable {
         if(bytesRead < 0) {
             // the client disconnected, cancel the key and close the connection
             System.out.println("Client disconnected");
+            this.disconnectUser(sockChannel);
             key.cancel();
             sockChannel.close();
             return;
         }
 
-        // extracting a bytes array from the buffer
-        byte[] data = new byte[this.readBuffer.remaining()];
-        this.readBuffer.get(data);
+        byte[] data = this.readBuffer.array();
 
-        // hand over the data read to a worker thread
-        this.workerPool.dispatchRequest(key, this.registrationPipe.sink(), data, bytesRead);
+        // extracting the JSON string representing the request from the buffer
+        String jsonRequest = new String(data, StandardCharsets.UTF_8);
+        System.out.println("DEBUG: "+jsonRequest);    // TODO REMOVE
+
+        // extracting a RequestObject from the JSON string and putting it in the task
+        Gson gson = new GsonBuilder().serializeNulls().create();
+        JsonReader reader = new JsonReader(new StringReader(jsonRequest));
+        reader.setLenient(true);
+        RequestObject request = gson.fromJson(reader, RequestObject.class);
+        this.readBuffer.clear();
+        
+        // hand over the request to the worker threads
+        try {
+            this.taskQueue.put(new ServerTask(sockChannel, request));
+        } catch(InterruptedException e) {
+            // TODO CLOSE
+            Thread.currentThread().interrupt();
+        }
     }
 
 
@@ -197,8 +242,25 @@ public class ServerMain implements Runnable {
     }
 
 
+    // removes all references to the disconnected user
+    private void disconnectUser(SocketChannel channel) {
+        this.loggedUsers.remove(this.connectedUsers.get(channel.toString()));
+        this.connectedUsers.remove(channel.toString());
+    }
+
+
     // thread main function
     public void run() {
+
+        // starting up all of the server's services
+        try {
+            this.startServer();
+        } catch(IOException e) {
+            System.err.println("Error starting the server. Quitting...");
+            System.exit(1);
+        }
+
+        // server's main loop
         while(!(isStopping.get())) {
             try {
                 // waiting for the accepting channel to become readable

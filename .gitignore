@@ -1,6 +1,4 @@
-storage
-
-!server/storage
+storage_dir
 
 instructions.txt
 *.class

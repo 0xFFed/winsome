@@ -8,6 +8,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 import common.config.Config;
 
@@ -44,7 +45,7 @@ public class ServerConfig extends Config {
     // returns a parsed config object
     public static ServerConfig getServerConfig() {
 
-        Gson gson = new Gson();
+        Gson gson = new GsonBuilder().serializeNulls().create();
         String configJson = null;
 
         try {

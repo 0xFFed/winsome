@@ -1,11 +1,21 @@
 package client.shell;
 
+import java.io.IOException;
 import java.net.Authenticator.RequestorType;
+import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
+import java.nio.charset.StandardCharsets;
 import java.rmi.RemoteException;
+import java.io.StringReader;
 import java.util.Objects;
 
-import common.request.ResultObject;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.stream.JsonReader;
+
+import common.User;
+import common.request.RequestObject;
+import common.request.ResponseObject;
 import common.rmi.RemoteRegistrationInterface;
 
 public class ClientShell implements WinsomeInterface {
@@ -22,6 +32,10 @@ public class ClientShell implements WinsomeInterface {
     // keeps track of the connection status
     protected boolean isConnected = false;
 
+    // buffer to be used in NIO data exchanges
+	private static final int BUF_DIM = 8192;
+	private ByteBuffer readBuffer = ByteBuffer.allocate(BUF_DIM);
+
 
     // max number of arguments for the register call
     private static final int MAX_REG_ARGS = 5;
@@ -33,20 +47,20 @@ public class ClientShell implements WinsomeInterface {
 
 
     // function used to parse given commands
-    public ResultObject parseCommand(String command, String[] args) throws RemoteException {
+    public ResponseObject parseCommand(String command, String[] args) throws RemoteException {
         Objects.requireNonNull(command, "command cannot be null");
 
         switch (command) {
             case "register":
-                if(args == null || args.length < 2) return new ResultObject(ResultObject.Result.ERROR, "Username and Password are needed");
+                if(args == null || args.length < 2) return new ResponseObject(ResponseObject.Result.ERROR, "Username and Password are needed", null);
                 String[] tags = new String[args.length-2];
-                if(args.length > (2+MAX_REG_ARGS)) return new ResultObject(ResultObject.Result.ERROR, "You can only add up to 5 tags");
+                if(args.length > (2+MAX_REG_ARGS)) return new ResponseObject(ResponseObject.Result.ERROR, "You can only add up to 5 tags", null);
                 if(args.length > 2) System.arraycopy(args, 2, tags, 0, (args.length-2));
                 return this.register(args[0], args[1], tags);
             
             case "login":
-                if(args == null || args.length < 2) return new ResultObject(ResultObject.Result.ERROR, "Username and Password are needed");
-                if(args.length > 2) return new ResultObject(ResultObject.Result.ERROR, "Too many arguments");
+                if(args == null || args.length < 2) return new ResponseObject(ResponseObject.Result.ERROR, "Username and Password are needed", null);
+                if(args.length > 2) return new ResponseObject(ResponseObject.Result.ERROR, "Too many arguments", null);
                 return this.login(args[0], args[1]);
                 
 
@@ -56,84 +70,137 @@ public class ClientShell implements WinsomeInterface {
                 break;
         }
 
-        return new ResultObject(ResultObject.Result.ERROR, "Invalid command");
+        return new ResponseObject(ResponseObject.Result.ERROR, "Invalid command", null);
+    }
+
+
+    private ResponseObject readResponse() {
+        this.readBuffer.clear();
+
+        // reading from the socket channel
+        int bytesRead = 0;
+        try {
+            bytesRead = this.sock.read(this.readBuffer);
+        } catch(IOException e) {
+            // connection lost
+            System.out.println("The server dropped the connection. Quitting...");
+            System.exit(1);
+        }
+
+        if(bytesRead < 0) {
+            // connection lost
+            System.out.println("Error while reading the server's response. Quitting...");
+            System.exit(1);
+        }
+
+        byte[] data = this.readBuffer.array();
+
+        // extracting the JSON string representing the response from the server
+        String jsonResponse = new String(data, StandardCharsets.UTF_8);
+        System.out.println("DEBUG: "+jsonResponse);    // TODO REMOVE
+
+        // extracting a RequestObject from the JSON string and putting it in the task
+        Gson gson = new GsonBuilder().serializeNulls().create();
+        JsonReader reader = new JsonReader(new StringReader(jsonResponse));
+        reader.setLenient(true);
+        this.readBuffer.clear();
+        
+        return gson.fromJson(reader, ResponseObject.class);
     }
 
 
     // TODO IMPLEMENT
-    public ResultObject register(String username, String password, String[] tags) throws RemoteException {
+    public ResponseObject register(String username, String password, String[] tags) throws RemoteException {
         return this.rmiRegistration.register(username, password, tags);
     }
 
-    public ResultObject login(String username, String password) {
-        this.isConnected = true;
+    public ResponseObject login(String username, String password) {
+        // creating the request object
+        String command = "login";
+        RequestObject request = new RequestObject(null, command, username, password, null, null, false);
 
-        return new ResultObject(ResultObject.Result.SUCCESS, "Success");
+        // making a JSON string out of the request
+        Gson gson = new GsonBuilder().serializeNulls().create();
+        String json = gson.toJson(request);
+        System.out.println(json);
+
+        try {
+            // sending the request through the socket
+            this.sock.write(ByteBuffer.wrap(json.getBytes(StandardCharsets.UTF_8)));
+        } catch(IOException e) {
+            System.err.println("The operation failed due to an I/O error. Quitting...");
+            System.exit(1);
+        }
+
+        ResponseObject response = readResponse();
+        if(!(response.hasFailed())) this.isConnected = true;
+
+        return response;
     }
 
-    public ResultObject logout() {
+    public ResponseObject logout() {
         this.isConnected = false;
-        return new ResultObject(ResultObject.Result.SUCCESS, "Success");
+        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null);
     }
 
-    public ResultObject listUsers() {
-        return new ResultObject(ResultObject.Result.SUCCESS, "Success");
+    public ResponseObject listUsers() {
+        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null);
     }
 
-    public ResultObject listFollowers() {
-        return new ResultObject(ResultObject.Result.SUCCESS, "Success");
+    public ResponseObject listFollowers() {
+        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null);
     }
 
-    public ResultObject listFollowing() {
-        return new ResultObject(ResultObject.Result.SUCCESS, "Success");
+    public ResponseObject listFollowing() {
+        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null);
     }
 
-    public ResultObject followUser(String userId) {
-        return new ResultObject(ResultObject.Result.SUCCESS, "Success");
+    public ResponseObject followUser(String userId) {
+        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null);
     }
 
-    public ResultObject unfollowUser(String userId) {
-        return new ResultObject(ResultObject.Result.SUCCESS, "Success");
+    public ResponseObject unfollowUser(String userId) {
+        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null);
     }
 
-    public ResultObject viewBlog() {
-        return new ResultObject(ResultObject.Result.SUCCESS, "Success");
+    public ResponseObject viewBlog() {
+        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null);
     }
 
-    public ResultObject createPost(String title, String content) {
-        return new ResultObject(ResultObject.Result.SUCCESS, "Success");
+    public ResponseObject createPost(String title, String content) {
+        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null);
     }
 
-    public ResultObject showFeed() {
-        return new ResultObject(ResultObject.Result.SUCCESS, "Success");
+    public ResponseObject showFeed() {
+        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null);
     }
 
-    public ResultObject showPost(String postId) {
-        return new ResultObject(ResultObject.Result.SUCCESS, "Success");
+    public ResponseObject showPost(String postId) {
+        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null);
     }
 
-    public ResultObject deletePost(String postId) {
-        return new ResultObject(ResultObject.Result.SUCCESS, "Success");
+    public ResponseObject deletePost(String postId) {
+        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null);
     }
 
-    public ResultObject rewinPost(String postId) {
-        return new ResultObject(ResultObject.Result.SUCCESS, "Success");
+    public ResponseObject rewinPost(String postId) {
+        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null);
     }
 
-    public ResultObject ratePost(String postId) {
-        return new ResultObject(ResultObject.Result.SUCCESS, "Success");
+    public ResponseObject ratePost(String postId) {
+        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null);
     }
 
-    public ResultObject addComment(String postId, String comment) {
-        return new ResultObject(ResultObject.Result.SUCCESS, "Success");
+    public ResponseObject addComment(String postId, String comment) {
+        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null);
     }
 
-    public ResultObject getWallet() {
-        return new ResultObject(ResultObject.Result.SUCCESS, "Success");
+    public ResponseObject getWallet() {
+        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null);
     }
 
-    public ResultObject getWalletInBitcoin() {
-        return new ResultObject(ResultObject.Result.SUCCESS, "Success");
+    public ResponseObject getWalletInBitcoin() {
+        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null);
     }
 
 }

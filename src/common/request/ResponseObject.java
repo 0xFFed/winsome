@@ -3,15 +3,18 @@ package common.request;
 import java.io.Serializable;
 import java.util.Objects;
 
-public class ResultObject implements Serializable {
+public class ResponseObject implements Serializable {
 
     private static final long serialVersionUID = 3462L;
 
     // true if the command has failed, false otherwise
-    protected boolean success;
+    private boolean success;
 
     // success/failure output message for the given command
-    protected String message;
+    private String message;
+
+    // token returned at registration/login
+    private String token;
 
     // enum for easy outcome determination
     public enum Result {
@@ -20,9 +23,10 @@ public class ResultObject implements Serializable {
     }
 
 
-    public ResultObject(Result result, String message) {
+    public ResponseObject(Result result, String message, String token) {
         this.success = Objects.requireNonNull(result, "You must specify whether the requested operation failed or not") == Result.SUCCESS;
         this.message = Objects.requireNonNull(message, "You must provide a success/failure message for the request result");
+        this.token = token;
     }
 
     public boolean hasFailed() {
@@ -33,9 +37,13 @@ public class ResultObject implements Serializable {
         return this.message;
     }
 
+    public String getToken() {
+        return this.token;
+    }
+
     @Override
     public String toString() {
-        return "RequestResult [success="+this.success+", message="+this.message+"]";
+        return "ResultObject [success="+this.success+", message="+this.message+"]";
     }
 
 }

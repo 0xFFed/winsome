@@ -2,43 +2,43 @@ package client.shell;
 
 import java.rmi.RemoteException;
 
-import common.request.ResultObject;
+import common.request.ResponseObject;
 
 public interface WinsomeInterface {
     
-    public ResultObject register(String username, String password, String[] tags) throws RemoteException;
+    public ResponseObject register(String username, String password, String[] tags) throws RemoteException;
 
-    public ResultObject login(String username, String password);
+    public ResponseObject login(String username, String password);
 
-    public ResultObject logout();
+    public ResponseObject logout();
 
-    public ResultObject listUsers();
+    public ResponseObject listUsers();
 
-    public ResultObject listFollowers();
+    public ResponseObject listFollowers();
 
-    public ResultObject listFollowing();
+    public ResponseObject listFollowing();
 
-    public ResultObject followUser(String userId);
+    public ResponseObject followUser(String userId);
 
-    public ResultObject unfollowUser(String userId);
+    public ResponseObject unfollowUser(String userId);
 
-    public ResultObject viewBlog();
+    public ResponseObject viewBlog();
 
-    public ResultObject createPost(String title, String content);
+    public ResponseObject createPost(String title, String content);
 
-    public ResultObject showFeed();
+    public ResponseObject showFeed();
 
-    public ResultObject showPost(String postId);
+    public ResponseObject showPost(String postId);
 
-    public ResultObject deletePost(String postId);
+    public ResponseObject deletePost(String postId);
 
-    public ResultObject rewinPost(String postId);
+    public ResponseObject rewinPost(String postId);
 
-    public ResultObject ratePost(String postId);
+    public ResponseObject ratePost(String postId);
 
-    public ResultObject addComment(String postId, String comment);
+    public ResponseObject addComment(String postId, String comment);
 
-    public ResultObject getWallet();
+    public ResponseObject getWallet();
 
-    public ResultObject getWalletInBitcoin();
+    public ResponseObject getWalletInBitcoin();
 }

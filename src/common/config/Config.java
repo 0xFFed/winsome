@@ -6,6 +6,7 @@ import java.io.FileReader;
 
 import com.google.gson.Gson;
 import com.google.gson.stream.JsonReader;
+import com.google.gson.GsonBuilder;
 
 public class Config {
     
@@ -34,7 +35,7 @@ public class Config {
 
     // returns a parsed config object
     public static Config getConfig() {
-        Gson gson = new Gson();
+        Gson gson = new GsonBuilder().serializeNulls().create();
         Config result = null;
 
         try {

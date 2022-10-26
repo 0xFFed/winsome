@@ -12,11 +12,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.ConcurrentMap;
 
 import com.google.gson.Gson;
-import com.google.gson.stream.JsonReader;
-import com.google.gson.stream.JsonWriter;
+import com.google.gson.GsonBuilder;
 
 import common.Post;
 import common.User;
@@ -26,9 +25,9 @@ public class Storage<T> {
     
     // ########## DATA ##########
 
-    private ConcurrentHashMap<String, T> data;
-    private String storageDirPath;
-    private String storageFilePath;
+    protected ConcurrentHashMap<String, T> data;
+    protected String storageDirPath;
+    protected String storageFilePath;
 
 
     // ########## METHODS ##########
@@ -47,14 +46,11 @@ public class Storage<T> {
         // creating storage file if non-existing
         File storageFile = new File(this.storageFilePath);
         storageFile.createNewFile();
-
-        // loading users data from storage file
-        this.loadData();
     }
 
 
     public void write() {
-        Gson gson = new Gson();
+        Gson gson = new GsonBuilder().serializeNulls().create();
         try(FileWriter writer = new FileWriter(this.storageFilePath)) {
             String jsonText = gson.toJson(this.data);
             writer.write(jsonText);
@@ -63,21 +59,6 @@ public class Storage<T> {
             e.printStackTrace();
             System.exit(1);
         }
-    }
-
-
-    private void loadData() {
-        Gson gson = new Gson();
-        
-        try(FileReader reader = new FileReader(this.storageFilePath)) {
-            this.data = gson.fromJson(new JsonReader(reader), ConcurrentHashMap.class);
-        } catch(IOException e) {
-            System.err.println("Error opening storage file (read-mode)");
-            e.printStackTrace();
-            System.exit(1);
-        }
-
-        if(this.data == null) this.data = new ConcurrentHashMap<>();
     }
 
 
@@ -99,5 +80,20 @@ public class Storage<T> {
     public void remove(String key) {
         this.data.remove(key);
         this.write();
+    }
+
+
+    public T get(String key) {
+        return this.data.get(key);
+    }
+
+
+    protected String getStorageDirPath() {
+        return this.storageDirPath;
+    }
+
+
+    protected String getStorageFilePath() {
+        return this.storageFilePath;
     }
 }

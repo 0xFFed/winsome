@@ -1,5 +1,7 @@
 package common;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 public class Post {
@@ -11,8 +13,8 @@ public class Post {
     private String content;
     private String author;
     private boolean isRewin;
-    private String[] likes;
-    private Comment[] comments;
+    private ArrayList<String> likes;
+    private ArrayList<Comment> comments;
 
 
     // ########## METHODS ##########
@@ -28,6 +30,8 @@ public class Post {
         this.content = content;
         this.author = author;
         this.isRewin = isRewin;
+        this.likes = new ArrayList<>();
+        this.comments = new ArrayList<>();
     }
 
 
@@ -52,12 +56,12 @@ public class Post {
     }
 
     // getter
-    public String[] getLikes() {
+    public List<String> getLikes() {
         return this.likes;
     }
 
     // getter
-    public Comment[] getComments() {
+    public List<Comment> getComments() {
         return this.comments;
     }
 }

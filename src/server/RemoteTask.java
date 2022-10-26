@@ -9,6 +9,7 @@ import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 
 import server.rmi.RemoteRegistration;
+import server.storage.ServerStorage;
 import server.storage.Storage;
 import common.User;
 import common.rmi.RemoteRegistrationInterface;
@@ -21,19 +22,17 @@ public class RemoteTask implements Runnable {
     private Registry reg;
 
 
-    // user-storage and post-storage objects
-    protected Storage<User> userStorage;
-    protected Storage<Post> postStorage;
+    // server-storage object
+    protected ServerStorage serverStorage;
 
 
     
-    public RemoteTask(Storage<User> userStorage, Storage<Post> postStorage) throws RemoteException, NullPointerException {
+    public RemoteTask(ServerStorage serverStorage) throws RemoteException, NullPointerException {
         // setting up the storage
-        this.userStorage = Objects.requireNonNull(userStorage, "User storage cannot be null");
-        this.postStorage = Objects.requireNonNull(postStorage, "Post storage cannot be null");
+        this.serverStorage = Objects.requireNonNull(serverStorage, "Server storage cannot be null");
 
         // generating and exposing the remote object
-        this.remoteRegistration = new RemoteRegistration(this.userStorage, this.postStorage);
+        this.remoteRegistration = new RemoteRegistration(this.serverStorage);
         this.stub = (RemoteRegistrationInterface) 
             UnicastRemoteObject.exportObject(this.remoteRegistration, ServerMain.config.getRmiPort());
         
