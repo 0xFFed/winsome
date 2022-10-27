@@ -1,5 +1,6 @@
 package client;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Scanner;
@@ -39,21 +40,24 @@ public class ClientMain implements Runnable {
     // RMI object handle
     protected RemoteRegistrationInterface rmiRegistration;
 
-    // RMI Callback handles
-    ClientCallbackInterface callbackObject;
-    ClientCallbackInterface callbackStub;
-    ServerCallbackInterface callbackHandle;
+    // Callback handles
+    protected ServerCallbackInterface callbackHandle;
+    protected ClientCallbackInterface callbackStub;
 
     // config object
     private static final Config config = Config.getConfig();
+
+
+    // list containing the user's followers, updated via RMI callback
+    protected ArrayList<String> followers = new ArrayList<>();
 
     // ########## METHODS ##########
 
     private ClientMain() throws IOException, NotBoundException {
         this.initConnection();
         this.rmiRegistration = this.rmiConnect();
-        this.registerCallback();
-        this.shell = new ClientShell(this.sock, this.rmiRegistration);
+        this.setupCallbackService();
+        this.shell = new ClientShell(this.sock, this.rmiRegistration, this.callbackHandle, this.callbackStub, this.followers);
     }
 
 
@@ -79,12 +83,29 @@ public class ClientMain implements Runnable {
 
 
     // registers for the follow/unfollow notification service
-    private void registerCallback() throws RemoteException,NotBoundException {
+    private void setupCallbackService() throws RemoteException,NotBoundException {
         Registry reg = LocateRegistry.getRegistry(ClientMain.config.getCallbackPort());
         this.callbackHandle = (ServerCallbackInterface) reg.lookup(ClientMain.config.getCallbackName());
-        this.callbackObject = new ClientCallback();
-        this.callbackStub = (ClientCallbackInterface) UnicastRemoteObject.exportObject(this.callbackObject, 0);
-        this.callbackHandle.registerForCallback(this.callbackStub);
+        ClientCallbackInterface callbackObject = new ClientCallback(this.followers);
+        this.callbackStub = (ClientCallbackInterface) UnicastRemoteObject.exportObject(callbackObject, 0);
+
+        // adding a cleanup-handler
+        Thread cleanupCallback = new Thread(() -> {
+            try {
+                System.err.println("\nQuitting...\n");
+                UnicastRemoteObject.unexportObject(callbackObject, true);
+                this.shell.parseCommand("logout", null);
+                this.sock.close();
+            } catch(IOException | NoSuchElementException e) {
+                e.printStackTrace();
+                System.exit(1);
+            }
+        });
+
+        // registering the cleanup-handler
+        Runtime.getRuntime().addShutdownHook(cleanupCallback);
+
+        
     }
 
     // prints the given message formatted according to the winsome shell visualization
@@ -126,17 +147,8 @@ public class ClientMain implements Runnable {
         } catch(RemoteException e) {
             System.err.println("WARNING: Server not reachable");
             e.printStackTrace();
-        } catch(NoSuchElementException e) { // ignored
-        } finally {
-            try {
-                System.err.println("\nQuitting...\n");
-                UnicastRemoteObject.unexportObject(this.callbackObject, true);
-                this.callbackHandle.unregisterForCallback(this.callbackStub);
-                this.sock.close();
-            } catch(IOException | NoSuchElementException e) {
-                e.printStackTrace();
-                System.exit(1);
-            }
+        } catch(NoSuchElementException e) {
+            // ignored
         }
     }
 

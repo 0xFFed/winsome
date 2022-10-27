@@ -1,23 +1,17 @@
 package server;
 
 import java.nio.channels.Pipe;
-import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Queue;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.ConcurrentMap;
 import java.rmi.RemoteException;
 import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -32,7 +26,6 @@ import common.Comment;
 import common.request.RequestObject;
 import common.request.ResponseObject;
 import common.crypto.Cryptography;
-import server.config.ServerConfig;
 import server.rmi.ServerCallback;
 import server.storage.ServerStorage;
 import server.storage.Storage;
@@ -41,10 +34,6 @@ import server.ServerMain;
 class ServerWorker implements Runnable {
 
     // ########## VARIABLES ##########
-
-    // worker threads threadpool and parameters
-    private static final int CPUS = Runtime.getRuntime().availableProcessors();
-    private ThreadPoolExecutor workerPool;
 
     // pipe channel to communicate OP_WRITE requests
     private Pipe.SinkChannel pipe;
@@ -80,6 +69,7 @@ class ServerWorker implements Runnable {
             Queue<WritingTask> registrationQueue,
             ConcurrentMap<String, String> connectedUsers,
             ConcurrentMap<String, User> loggedUsers) {
+
         this.serverStorage = Objects.requireNonNull(serverStorage, "Server storage cannot be null");
         this.callbackHandle = Objects.requireNonNull(callbackHandle, "callback object cannot be null");
         this.pipe = Objects.requireNonNull(pipe, "Main-Worker pipe cannot be null");
@@ -87,7 +77,6 @@ class ServerWorker implements Runnable {
         this.registrationQueue = Objects.requireNonNull(registrationQueue, "Write-task queue cannot be null");
         this.connectedUsers = Objects.requireNonNull(connectedUsers, "Connected users map cannot be null");
         this.loggedUsers = Objects.requireNonNull(loggedUsers, "Logged users map cannot be null");
-        this.workerPool = (ThreadPoolExecutor)Executors.newFixedThreadPool(CPUS*ServerMain.config.getCoreMult());
     }
 
 
@@ -154,6 +143,10 @@ class ServerWorker implements Runnable {
                 case "rate":
                     this.ratePost(task.getRequest(), task.getSock());
                     break;
+
+                case "comment":
+                    this.addComment(task.getRequest(), task.getSock());
+                    break;
             
                 default:
                     this.invalidCommand(task.getSock());
@@ -210,7 +203,7 @@ class ServerWorker implements Runnable {
                 this.loggedUsers.putIfAbsent(token, user);
 
                 // writing the response to the client
-                ResponseObject response = new ResponseObject(ResponseObject.Result.SUCCESS, "Successfully logged in", token, null, null);
+                ResponseObject response = new ResponseObject(ResponseObject.Result.SUCCESS, "Successfully logged in", token, user.getFollowers(), null);
                 sendResponse(response, sock);
             }
             else {
@@ -228,6 +221,12 @@ class ServerWorker implements Runnable {
 
 
     private void logout(RequestObject request, SocketChannel sock) {
+
+        if(Objects.isNull(request.getToken()) || Objects.isNull(this.loggedUsers.get(request.getToken()))) {
+            ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
+            sendResponse(response, sock);
+            return;
+        }
         
         // disconnecting the client
         if(this.connectedUsers.get(sock.socket().toString()).equals(request.getToken()) &&
@@ -249,13 +248,14 @@ class ServerWorker implements Runnable {
 
     
     private void listUsers(RequestObject request, SocketChannel sock) {
-        User user = this.loggedUsers.get(request.getToken());
 
-        if(Objects.isNull(user)) {
+        if(Objects.isNull(request.getToken()) || Objects.isNull(this.loggedUsers.get(request.getToken()))) {
             ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
             sendResponse(response, sock);
             return;
         }
+
+        User user = this.loggedUsers.get(request.getToken());
 
         List<String> userTags = user.getTags();
         List<User> selectedUsers = new ArrayList<>();
@@ -284,19 +284,15 @@ class ServerWorker implements Runnable {
         sendResponse(response, sock);
     }
 
-    /*
-    private void listFollowers(RequestObject request, SocketChannel sock);
-
-    */
-
     private void listFollowing(RequestObject request, SocketChannel sock) {
-        User user = this.loggedUsers.get(request.getToken());
-
-        if(Objects.isNull(user)) {
+        
+        if(Objects.isNull(request.getToken()) || Objects.isNull(this.loggedUsers.get(request.getToken()))) {
             ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
             sendResponse(response, sock);
             return;
         }
+
+        User user = this.loggedUsers.get(request.getToken());
 
         ResponseObject response = new ResponseObject(ResponseObject.Result.SUCCESS, "You are following: "+String.join(", ", user.getFollowings()), null, user.getFollowings(), null);
         sendResponse(response, sock);
@@ -304,13 +300,14 @@ class ServerWorker implements Runnable {
 
     
     private void followUser(RequestObject request, SocketChannel sock) {
-        User user = this.loggedUsers.get(request.getToken());
-
-        if(Objects.isNull(user)) {
+        
+        if(Objects.isNull(request.getToken()) || Objects.isNull(this.loggedUsers.get(request.getToken()))) {
             ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
             sendResponse(response, sock);
             return;
         }
+
+        User user = this.loggedUsers.get(request.getToken());
 
         User userToFollow = this.serverStorage.getUserStorage().get(request.getUsername());
         if(Objects.isNull(userToFollow)) {
@@ -329,6 +326,19 @@ class ServerWorker implements Runnable {
 
         if(success) {
             this.serverStorage.getUserStorage().write();
+
+            Iterator<String> tokenIter = this.loggedUsers.keySet().iterator();
+            while(tokenIter.hasNext()) {
+                String userToken = tokenIter.next();
+                if(this.loggedUsers.get(userToken).getUsername().equals(userToFollow.getUsername())) {
+                    try {
+                        this.callbackHandle.notifyFollow(userToken, user.getUsername());
+                    } catch(RemoteException e) {
+                        System.err.println("Failed to notify follower");
+                    }
+                }
+            }
+
             ResponseObject response = new ResponseObject(ResponseObject.Result.SUCCESS, "You are now following "+request.getUsername(), null, null, null);
             sendResponse(response, sock);
         }
@@ -341,13 +351,14 @@ class ServerWorker implements Runnable {
 
 
     private void unfollowUser(RequestObject request, SocketChannel sock) {
-        User user = this.loggedUsers.get(request.getToken());
-
-        if(Objects.isNull(user)) {
+        
+        if(Objects.isNull(request.getToken()) || Objects.isNull(this.loggedUsers.get(request.getToken()))) {
             ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
             sendResponse(response, sock);
             return;
         }
+
+        User user = this.loggedUsers.get(request.getToken());
 
         User userToUnfollow = this.serverStorage.getUserStorage().get(request.getUsername());
         if(Objects.isNull(userToUnfollow)) {
@@ -366,6 +377,19 @@ class ServerWorker implements Runnable {
 
         if(success) {
             this.serverStorage.getUserStorage().write();
+
+            Iterator<String> tokenIter = this.loggedUsers.keySet().iterator();
+            while(tokenIter.hasNext()) {
+                String userToken = tokenIter.next();
+                if(this.loggedUsers.get(userToken).getUsername().equals(userToUnfollow.getUsername())) {
+                    try {
+                        this.callbackHandle.notifyUnfollow(userToken, user.getUsername());
+                    } catch(RemoteException e) {
+                        System.err.println("Failed to notify unfollow");
+                    }
+                }
+            }
+
             ResponseObject response = new ResponseObject(ResponseObject.Result.SUCCESS, "You are no longer following "+request.getUsername(), null, null, null);
             sendResponse(response, sock);
         }
@@ -377,13 +401,14 @@ class ServerWorker implements Runnable {
 
     
     private void viewBlog(RequestObject request, SocketChannel sock) {
-        User user = this.loggedUsers.get(request.getToken());
-
-        if(Objects.isNull(user)) {
+        
+        if(Objects.isNull(request.getToken()) || Objects.isNull(this.loggedUsers.get(request.getToken()))) {
             ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
             sendResponse(response, sock);
             return;
         }
+
+        User user = this.loggedUsers.get(request.getToken());
 
         ArrayList<Post> allPosts = this.serverStorage.getPostStorage().getPostSet();
         ArrayList<String> result = new ArrayList<>();
@@ -396,19 +421,20 @@ class ServerWorker implements Runnable {
             }
         }
 
-        ResponseObject response = new ResponseObject(ResponseObject.Result.SUCCESS, "Your blog:\n##########\n"+String.join("\n##########\n", result), null, result, null);
+        ResponseObject response = new ResponseObject(ResponseObject.Result.SUCCESS, "Your blog:\n####################\n"+String.join("\n####################\n", result)+"\n####################\n", null, result, null);
         sendResponse(response, sock);
     }
 
     
     private void createPost(RequestObject request, SocketChannel sock) {
-        User user = this.loggedUsers.get(request.getToken());
-
-        if(Objects.isNull(user)) {
+        
+        if(Objects.isNull(request.getToken()) || Objects.isNull(this.loggedUsers.get(request.getToken()))) {
             ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
             sendResponse(response, sock);
             return;
         }
+
+        User user = this.loggedUsers.get(request.getToken());
 
         Post newPost = new Post(request.getPost().getTitle(), request.getPost().getContent(), user.getUsername(), null, false);
         boolean success = this.serverStorage.getPostStorage().add(Integer.toString(newPost.getPostId()), newPost);
@@ -425,13 +451,14 @@ class ServerWorker implements Runnable {
 
     
     private void showFeed(RequestObject request, SocketChannel sock) {
-        User user = this.loggedUsers.get(request.getToken());
-
-        if(Objects.isNull(user)) {
+        
+        if(Objects.isNull(request.getToken()) || Objects.isNull(this.loggedUsers.get(request.getToken()))) {
             ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
             sendResponse(response, sock);
             return;
         }
+
+        User user = this.loggedUsers.get(request.getToken());
 
         ArrayList<String> following = user.getFollowings();
         ArrayList<Post> allPosts = this.serverStorage.getPostStorage().getPostSet();
@@ -445,19 +472,20 @@ class ServerWorker implements Runnable {
             }
         }
 
-        ResponseObject response = new ResponseObject(ResponseObject.Result.SUCCESS, "Your feed:\n##########\n"+String.join("\n##########\n", result), null, result, null);
+        ResponseObject response = new ResponseObject(ResponseObject.Result.SUCCESS, "Your feed:\n####################\n"+String.join("\n####################\n", result)+"\n####################\n", null, result, null);
         sendResponse(response, sock);
     }
 
     
     private void showPost(RequestObject request, SocketChannel sock) {
-        User user = this.loggedUsers.get(request.getToken());
-
-        if(Objects.isNull(user)) {
+        
+        if(Objects.isNull(request.getToken()) || Objects.isNull(this.loggedUsers.get(request.getToken()))) {
             ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
             sendResponse(response, sock);
             return;
         }
+
+        User user = this.loggedUsers.get(request.getToken());
 
         Post post = this.serverStorage.getPostStorage().get(request.getData().get(0));
 
@@ -475,9 +503,10 @@ class ServerWorker implements Runnable {
             commentList.add(currComment.toString());
         }
 
-        String result = "\n##########\nTitle: "+post.getTitle()+"\nContent: "+post.getContent()+"\nLikes: "+
-            post.getLikes().size()+"\nDislikes: "+post.getDislikes().size()+"\nComments: "+String.join("\n----------\n", commentList);
-        if(post.isRewin()) result = result+"----------\n(Rewin from "+post.getOriginalAuthor()+"'s post)";
+        String result = "\n####################\n\nTitle: \""+post.getTitle()+"\"\nContent: "+post.getContent()+"\nLikes: "+
+            post.getLikes().size()+"\nDislikes: "+post.getDislikes().size()+"\nComments:\n----------\n"+String.join("\n", commentList);
+        if(post.isRewin()) result = result+"\n----------\n(Rewin from "+post.getOriginalAuthor()+"'s post)";
+        result = result+"\n####################\n";
         
         ResponseObject response = new ResponseObject(ResponseObject.Result.SUCCESS, result, null, null, null);
         sendResponse(response, sock);
@@ -485,13 +514,14 @@ class ServerWorker implements Runnable {
 
     
     private void deletePost(RequestObject request, SocketChannel sock) {
-        User user = this.loggedUsers.get(request.getToken());
-
-        if(Objects.isNull(user)) {
+        
+        if(Objects.isNull(request.getToken()) || Objects.isNull(this.loggedUsers.get(request.getToken()))) {
             ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
             sendResponse(response, sock);
             return;
         }
+
+        User user = this.loggedUsers.get(request.getToken());
 
         Post post = this.serverStorage.getPostStorage().get(request.getData().get(0));
 
@@ -514,13 +544,14 @@ class ServerWorker implements Runnable {
 
     
     private void rewinPost(RequestObject request, SocketChannel sock) {
-        User user = this.loggedUsers.get(request.getToken());
-
-        if(Objects.isNull(user)) {
+        
+        if(Objects.isNull(request.getToken()) || Objects.isNull(this.loggedUsers.get(request.getToken()))) {
             ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
             sendResponse(response, sock);
             return;
         }
+
+        User user = this.loggedUsers.get(request.getToken());
 
         Post post = this.serverStorage.getPostStorage().get(request.getData().get(0));
 
@@ -564,13 +595,14 @@ class ServerWorker implements Runnable {
 
     
     private void ratePost(RequestObject request, SocketChannel sock) {
-        User user = this.loggedUsers.get(request.getToken());
-
-        if(Objects.isNull(user)) {
+        
+        if(Objects.isNull(request.getToken()) || Objects.isNull(this.loggedUsers.get(request.getToken()))) {
             ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
             sendResponse(response, sock);
             return;
         }
+
+        User user = this.loggedUsers.get(request.getToken());
 
         Post post = this.serverStorage.getPostStorage().get(request.getData().get(0));
 
@@ -628,9 +660,33 @@ class ServerWorker implements Runnable {
         }
     }
 
-    /*
-    private void addComment(RequestObject request, SocketChannel sock);
+    
+    private void addComment(RequestObject request, SocketChannel sock) {
+        
+        if(Objects.isNull(request.getToken()) || Objects.isNull(this.loggedUsers.get(request.getToken()))) {
+            ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
+            sendResponse(response, sock);
+            return;
+        }
 
+        User user = this.loggedUsers.get(request.getToken());
+
+        Post post = this.serverStorage.getPostStorage().get(request.getData().get(0));
+
+        if(Objects.isNull(post)) {
+            ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "The post does not exist", null, null, null);
+            sendResponse(response, sock);
+            return;
+        }
+
+        Comment comment = new Comment(user.getUsername(), request.getComment().getContent());
+        post.addComment(comment);
+
+        ResponseObject response = new ResponseObject(ResponseObject.Result.SUCCESS, "Comment added", null, null, null);
+        sendResponse(response, sock);
+    }
+
+    /*
     private void getWallet(RequestObject request, SocketChannel sock);
 
     private void getWalletInBitcoin(RequestObject request, SocketChannel sock);

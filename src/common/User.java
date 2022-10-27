@@ -15,6 +15,7 @@ public class User {
     private ArrayList<String> tags = new ArrayList<>();
     private ArrayList<String> followers = new ArrayList<>();
     private ArrayList<String> followings = new ArrayList<>();
+    private ArrayList<Transaction> transactionHistory = new ArrayList<>();
     private int balance;
 
 
@@ -48,18 +49,23 @@ public class User {
     }
 
     // getter
-    public ArrayList<String> getTags() {
+    public synchronized ArrayList<String> getTags() {
         return this.tags;
     }
 
     // getter
-    public ArrayList<String> getFollowers() {
+    public synchronized ArrayList<String> getFollowers() {
         return this.followers;
     }
 
     // getter
-    public ArrayList<String> getFollowings() {
+    public synchronized ArrayList<String> getFollowings() {
         return this.followings;
+    }
+
+    // getter
+    public synchronized ArrayList<Transaction> getTransactionHistory() {
+        return this.transactionHistory;
     }
 
     // getter
@@ -73,7 +79,7 @@ public class User {
     }
 
     // setter
-    public static void setCounter(int value) {
+    public static synchronized void setCounter(int value) {
         counter.set(value);
     }
 
@@ -81,7 +87,7 @@ public class User {
     // ########## UTILITY FUNCTIONS ##########
 
     // adds a follower to the user; returns true if it wasn't already a follower
-    public boolean addFollower(User follower) {
+    public synchronized boolean addFollower(User follower) {
         if(this.followers.contains(follower.getUsername())) return false;
         else {
             follower.getFollowings().add(this.getUsername());
@@ -90,7 +96,7 @@ public class User {
     }
 
     // removes a follower from the user; returns true if it was already a follower
-    public boolean removeFollower(User unfollower) {
+    public synchronized boolean removeFollower(User unfollower) {
         unfollower.getFollowings().remove(this.getUsername());
         return this.followers.remove(unfollower.getUsername());
     }

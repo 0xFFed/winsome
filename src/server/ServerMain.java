@@ -22,6 +22,7 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.spi.SelectorProvider;
 import java.nio.charset.StandardCharsets;
 import java.rmi.AlreadyBoundException;
+import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
@@ -37,6 +38,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.stream.JsonReader;
 
+import server.rmi.RemoteRegistration;
 import server.rmi.ServerCallback;
 import server.config.ServerConfig;
 import server.storage.PostStorage;
@@ -45,12 +47,17 @@ import server.storage.Storage;
 import server.storage.UserStorage;
 import common.User;
 import common.request.RequestObject;
+import common.rmi.RemoteRegistrationInterface;
 import common.rmi.ServerCallbackInterface;
 import common.Post;
 
 public class ServerMain implements Runnable {
 
     // ########## CONFIGURATION DATA ##########
+
+    // worker threads threadpool and parameters
+    private static final int CPUS = Runtime.getRuntime().availableProcessors();
+    private ThreadPoolExecutor workerPool;
 
     // rmi callback handle
     protected ServerCallback callbackHandle;
@@ -126,9 +133,6 @@ public class ServerMain implements Runnable {
         // setting up the registration pipe's read-end
         this.registrationPipe.source().configureBlocking(false);
         this.registrationPipe.source().register(this.selector, SelectionKey.OP_READ);
-
-        // starting up the RMI handler thread
-        new Thread(new RemoteTask(this.serverStorage)).start();
 
         // starting the worker thread
         new Thread(new ServerWorker(this.serverStorage,
@@ -239,7 +243,55 @@ public class ServerMain implements Runnable {
         Registry reg = LocateRegistry.getRegistry(config.getCallbackPort());
         reg.rebind(config.getCallbackName(), stub);
 
+        // adding a cleanup-handler
+        Thread cleanupNotificationService = new Thread(() -> {
+            try {
+                System.out.println("exiting notification service...");
+                reg.unbind(config.getCallbackName());
+                UnicastRemoteObject.unexportObject(rmiHandle, true);
+            } catch(RemoteException | NotBoundException e) {
+                System.err.println("Error during notification service cleanup");
+                e.printStackTrace();
+                System.exit(1);
+            }
+        });
+
+        // registering the cleanup-handler
+        Runtime.getRuntime().addShutdownHook(cleanupNotificationService);
+
         return rmiHandle;
+    }
+
+
+    // sets up the RMI registration service
+    public void startRegistrationService() throws RemoteException {
+        // generating and exposing the remote object
+        RemoteRegistration remoteRegistration = new RemoteRegistration(this.serverStorage);
+        RemoteRegistrationInterface stub = (RemoteRegistrationInterface) 
+            UnicastRemoteObject.exportObject(remoteRegistration, config.getRmiPort());
+        
+        // creating and retrieving the RMI registry
+        LocateRegistry.createRegistry(config.getRmiPort());
+        Registry reg = LocateRegistry.getRegistry(config.getRmiAddr(), config.getRmiPort());
+
+        // binding the registration stub to its symbolic name
+        reg.rebind(config.getRmiName(), stub);
+
+        // adding a cleanup-handler
+        Thread cleanupRegisterService = new Thread(() -> {
+            try {
+                System.out.println("exiting remote registration service...");
+                reg.unbind(config.getRmiName());
+                UnicastRemoteObject.unexportObject(remoteRegistration, true);
+            } catch(RemoteException | NotBoundException e) {
+                System.err.println("Error during remote registration service cleanup");
+                e.printStackTrace();
+                System.exit(1);
+            }
+        });
+
+        // registering the cleanup-handler
+        Runtime.getRuntime().addShutdownHook(cleanupRegisterService);
     }
 
 
@@ -258,6 +310,7 @@ public class ServerMain implements Runnable {
         // starting up all of the server's services
         try {
             this.startServer();
+            this.startRegistrationService();
         } catch(IOException e) {
             System.err.println("Error starting the server. Quitting...");
             System.exit(1);

@@ -16,10 +16,8 @@ public class Comment implements Serializable {
     // ########## METHODS ##########
 
     public Comment(String author, String content) throws NullPointerException {
-        Objects.requireNonNull(author, "author cannot be null");
-        Objects.requireNonNull(content, "content cannot be null");
-        this.author = author;
-        this.content = content;
+        if(Objects.isNull(author)) this.author = ""; else this.author = author;
+        if(Objects.isNull(content)) this.content = ""; else this.content = content;
     }
 
 
@@ -36,6 +34,6 @@ public class Comment implements Serializable {
 
     @Override
     public String toString() {
-        return "Comment: [Author: "+this.author+"\nContent: "+this.content+"]";
+        return this.author+": "+this.content;
     }
 }

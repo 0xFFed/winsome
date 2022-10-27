@@ -37,6 +37,15 @@ public class ServerConfig extends Config {
     // relative path to the post counter file
     private String postCounterPath;
 
+    // address used in multicast communications
+    private InetAddress multicastAddress;
+
+    // port used in multicast communications
+    private String multicastPort;
+
+    // timer that intervals multicast communications
+    private int multicastTimer;
+
     // number of threads per core
     private int coreMultiplier;
 
@@ -104,6 +113,21 @@ public class ServerConfig extends Config {
     // getter
     public String getPostCounterPath() {
         return this.postCounterPath;
+    }
+
+    // getter
+    public InetAddress getMulticastAddress() {
+        return this.multicastAddress;
+    }
+
+    // getter
+    public String getMulticastPort() {
+        return this.multicastPort;
+    }
+
+    // getter
+    public int getMulticastTimer() {
+        return this.multicastTimer;
     }
 
     // getter

@@ -28,13 +28,11 @@ public class Post implements Serializable {
     // ########## METHODS ##########
 
     public Post(String title, String content, String author, String originalAuthor, boolean rewin) throws NullPointerException {
-        Objects.requireNonNull(title, "title cannot be null");
-        Objects.requireNonNull(content, "content cannot be null");
+        this.title = Objects.requireNonNull(title, "title cannot be null");
+        this.content = Objects.requireNonNull(content, "content cannot be null");
+        this.author = Objects.requireNonNull(author, "author cannot be null");
 
         this.postId = counter.get();
-        this.title = title;
-        this.content = content;
-        this.author = author;
         if(rewin) this.originalAuthor = Objects.requireNonNull(originalAuthor);
         else this.originalAuthor = author;
         this.rewin = rewin;
@@ -92,7 +90,7 @@ public class Post implements Serializable {
     }
 
     // setter
-    public static void setCounter(int value) {
+    public static synchronized void setCounter(int value) {
         counter.set(value);
     }
 
@@ -105,6 +103,11 @@ public class Post implements Serializable {
             this.likes.add(user.getUsername());
             return true;
         }
+    }
+
+    // setter
+    public synchronized void addComment(Comment comment) {
+        this.comments.add(comment);
     }
 
     // setter

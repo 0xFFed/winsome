@@ -17,12 +17,15 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.stream.JsonReader;
 
+import common.Comment;
 import common.Post;
 import common.User;
 import common.request.RequestObject;
 import common.request.ResponseObject;
 import common.request.ResponseObject.Result;
+import common.rmi.ClientCallbackInterface;
 import common.rmi.RemoteRegistrationInterface;
+import common.rmi.ServerCallbackInterface;
 
 public class ClientShell implements WinsomeInterface {
 
@@ -32,8 +35,15 @@ public class ClientShell implements WinsomeInterface {
     // rmi registration service handler
     private RemoteRegistrationInterface rmiRegistration;
 
+    // callback handlers
+    private ServerCallbackInterface callbackHandle;
+    private ClientCallbackInterface callbackStub;
+
     // token identifying the user to the server
     private String authToken;
+
+    // data structure holding the current logged user's followers
+    private ArrayList<String> followers;
 
     // keeps track of the connection status
     private boolean isLogged = false;
@@ -47,14 +57,18 @@ public class ClientShell implements WinsomeInterface {
     private static final int MAX_REG_ARGS = 5;
 
     // macros for recurrent error messages
-    private static final String NOT_LOGGED = "You are not logged in";
     private static final String TOO_MANY = "Too many arguments";
     private static final String INVALID = "Invalid command";
     private static final String INCOMPLETE = "Incomplete command";
 
-    public ClientShell(SocketChannel sock, RemoteRegistrationInterface rmiRegistration) {
+    public ClientShell(SocketChannel sock, RemoteRegistrationInterface rmiRegistration, ServerCallbackInterface callbackHandle,
+        ClientCallbackInterface callbackStub, ArrayList<String> followers) {
+
         this.sock = Objects.requireNonNull(sock, "Socket cannot be null to communicate with server");
         this.rmiRegistration = Objects.requireNonNull(rmiRegistration, "RMI handler cannot be null");
+        this.callbackHandle = Objects.requireNonNull(callbackHandle, "Follow/Unfollow handle cannot be null");
+        this.callbackStub = Objects.requireNonNull(callbackStub, "Stub for to notification service cannot be null");
+        this.followers = Objects.requireNonNull(followers, "Followers data structure cannot be null");
         this.authToken = null;
     }
 
@@ -125,20 +139,36 @@ public class ClientShell implements WinsomeInterface {
                 else break;
 
             case "delete":
-                if(args == null || args.length == 0) return new ResponseObject(ResponseObject.Result.ERROR, INCOMPLETE, null, null, null);
+                if(args == null || args.length == 0) return new ResponseObject(ResponseObject.Result.ERROR, "You have to specify the ID of the post to remove", null, null, null);
                 if(args.length > 1) return new ResponseObject(ResponseObject.Result.ERROR, TOO_MANY, null, null, null);
                 return this.deletePost(args[0]);
 
             case "rewin":
-                if(args == null || args.length == 0) return new ResponseObject(ResponseObject.Result.ERROR, INCOMPLETE, null, null, null);
+                if(args == null || args.length == 0) return new ResponseObject(ResponseObject.Result.ERROR, "You have to specify the ID of the post to rewin", null, null, null);
                 if(args.length > 1) return new ResponseObject(ResponseObject.Result.ERROR, TOO_MANY, null, null, null);
                 return this.rewinPost(args[0]);
 
             case "rate":
-            if(args == null || args.length == 0) return new ResponseObject(ResponseObject.Result.ERROR, INCOMPLETE, null, null, null);
-            if(args.length == 1) return new ResponseObject(ResponseObject.Result.ERROR, "You have to specify the post ID and your vote (+1/-1)", null, null, null);
-            if(args.length > 2) return new ResponseObject(ResponseObject.Result.ERROR, TOO_MANY, null, null, null);
-            return this.ratePost(args[0], args[1]);
+                if(args == null || args.length == 0) return new ResponseObject(ResponseObject.Result.ERROR, "You have to specify a post ID", null, null, null);
+                if(args.length == 1) return new ResponseObject(ResponseObject.Result.ERROR, "You have to specify your vote (+1/-1)", null, null, null);
+                if(args.length > 2) return new ResponseObject(ResponseObject.Result.ERROR, TOO_MANY, null, null, null);
+                return this.ratePost(args[0], args[1]);
+
+            case "comment":
+                if(args == null || args.length == 0) return new ResponseObject(ResponseObject.Result.ERROR, "You have to specify the ID of the post to comment", null, null, null);
+                if(args.length == 1) return new ResponseObject(ResponseObject.Result.ERROR, "You have to write a comment", null, null, null);
+                String[] comment = new String[args.length-1];
+                System.arraycopy(args, 1, comment, 0, (args.length-1));
+                String commentText = String.join(" ", Arrays.asList(comment));
+                return addComment(args[0], commentText);
+
+            case "wallet":
+                if(args == null || args.length == 0) return this.getWallet();
+                else {
+                    if(args.length > 1) return new ResponseObject(ResponseObject.Result.ERROR, TOO_MANY, null, null, null);
+                    if(args[0].equals("btc")) return this.getWalletInBitcoin();
+                    else return new ResponseObject(ResponseObject.Result.ERROR, INVALID, null, null, null);
+                }
 
             default:
                 break;
@@ -208,21 +238,23 @@ public class ClientShell implements WinsomeInterface {
         return this.rmiRegistration.register(username, password, tagsList);
     }
 
-    public ResponseObject login(String username, String password) {
+    public ResponseObject login(String username, String password) throws RemoteException {
         String command = "login";
         RequestObject request = new RequestObject(this.authToken, command, username, password, null, null, null);
         this.sendRequest(request);
 
         ResponseObject response = readResponse();
         if(response.isSuccess()) {
+            this.followers.addAll(response.getStringArray());
             this.isLogged = true;
             this.authToken = response.getStringData();
+            this.callbackHandle.registerForCallback(this.authToken, this.callbackStub);
         }
 
         return response;
     }
 
-    public ResponseObject logout() {
+    public ResponseObject logout() throws RemoteException {
 
         String command = "logout";
         RequestObject request = new RequestObject(this.authToken, command, null, null, null, null, null);
@@ -230,6 +262,8 @@ public class ClientShell implements WinsomeInterface {
 
         ResponseObject response = readResponse();
         if(response.isSuccess()) {
+            this.followers.removeAll(followers);
+            this.callbackHandle.unregisterForCallback(this.authToken);
             this.isLogged = false;
             this.authToken = null;
         }
@@ -247,8 +281,11 @@ public class ClientShell implements WinsomeInterface {
     }
 
     public ResponseObject listFollowers() {
-        // CODE
-        return null;
+        if(!(this.isLogged)) return new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
+
+        String result = String.join(", ", this.followers);
+
+        return new ResponseObject(ResponseObject.Result.SUCCESS, result, null, null, null);
     }
 
     public ResponseObject listFollowing() {
@@ -290,7 +327,7 @@ public class ClientShell implements WinsomeInterface {
     public ResponseObject createPost(String title, String content) {
 
         String command = "post";
-        RequestObject request = new RequestObject(this.authToken, command, null, null, new Post(title, content, null, null, false), null, null);
+        RequestObject request = new RequestObject(this.authToken, command, null, null, new Post(title, content, "", null, false), null, null);
         sendRequest(request);
 
         return readResponse();
@@ -350,15 +387,34 @@ public class ClientShell implements WinsomeInterface {
     }
 
     public ResponseObject addComment(String postId, String comment) {
-        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null, null, null);
+
+        String command = "comment";
+        System.out.println("DEBUG: "+postId);
+        System.out.println("DEBUG: "+comment);
+        ArrayList<String> data = new ArrayList<>();
+        data.add(postId);
+        RequestObject request = new RequestObject(this.authToken, command, null, null, null, new Comment(null, comment), data);
+        sendRequest(request);
+
+        return readResponse();
     }
 
     public ResponseObject getWallet() {
-        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null, null, null);
+
+        String command = "wallet";
+        RequestObject request = new RequestObject(this.authToken, command, null, null, null, null, null);
+        sendRequest(request);
+
+        return readResponse();
     }
 
     public ResponseObject getWalletInBitcoin() {
-        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null, null, null);
+
+        String command = "wallet btc";
+        RequestObject request = new RequestObject(this.authToken, command, null, null, null, null, null);
+        sendRequest(request);
+
+        return readResponse();
     }
 
 }

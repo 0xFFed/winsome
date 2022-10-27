@@ -8,9 +8,9 @@ public interface WinsomeInterface {
     
     public ResponseObject register(String username, String password, String[] tags) throws RemoteException;
 
-    public ResponseObject login(String username, String password);
+    public ResponseObject login(String username, String password) throws RemoteException;
 
-    public ResponseObject logout();
+    public ResponseObject logout() throws RemoteException;
 
     public ResponseObject listUsers();
 
