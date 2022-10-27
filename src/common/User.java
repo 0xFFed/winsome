@@ -1,8 +1,6 @@
 package common;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -85,11 +83,15 @@ public class User {
     // adds a follower to the user; returns true if it wasn't already a follower
     public boolean addFollower(User follower) {
         if(this.followers.contains(follower.getUsername())) return false;
-        else return this.followers.add(follower.getUsername());
+        else {
+            follower.getFollowings().add(this.getUsername());
+            return this.followers.add(follower.getUsername());
+        }
     }
 
     // removes a follower from the user; returns true if it was already a follower
     public boolean removeFollower(User unfollower) {
+        unfollower.getFollowings().remove(this.getUsername());
         return this.followers.remove(unfollower.getUsername());
     }
 }

@@ -34,7 +34,7 @@ public interface WinsomeInterface {
 
     public ResponseObject rewinPost(String postId);
 
-    public ResponseObject ratePost(String postId);
+    public ResponseObject ratePost(String postId, String vote);
 
     public ResponseObject addComment(String postId, String comment);
 

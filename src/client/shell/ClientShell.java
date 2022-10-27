@@ -11,11 +11,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.StringTokenizer;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.stream.JsonReader;
 
+import common.Post;
 import common.User;
 import common.request.RequestObject;
 import common.request.ResponseObject;
@@ -48,6 +50,7 @@ public class ClientShell implements WinsomeInterface {
     private static final String NOT_LOGGED = "You are not logged in";
     private static final String TOO_MANY = "Too many arguments";
     private static final String INVALID = "Invalid command";
+    private static final String INCOMPLETE = "Incomplete command";
 
     public ClientShell(SocketChannel sock, RemoteRegistrationInterface rmiRegistration) {
         this.sock = Objects.requireNonNull(sock, "Socket cannot be null to communicate with server");
@@ -79,9 +82,11 @@ public class ClientShell implements WinsomeInterface {
                 return this.logout();
 
             case "list":
-                if(args == null || args.length == 0) return new ResponseObject(ResponseObject.Result.ERROR, "Incomplete command", null, null, null);
-                if(args.length > 1) return new ResponseObject(ResponseObject.Result.ERROR, "Invalid command", null, null, null);
+                if(args == null || args.length == 0) return new ResponseObject(ResponseObject.Result.ERROR, INCOMPLETE, null, null, null);
+                if(args.length > 1) return new ResponseObject(ResponseObject.Result.ERROR, INVALID, null, null, null);
                 if(args[0].equals("users")) return this.listUsers();
+                if(args[0].equals("followers")) return this.listFollowers();
+                if(args[0].equals("following")) return this.listFollowing();
                 break;
 
             case "follow":
@@ -94,11 +99,52 @@ public class ClientShell implements WinsomeInterface {
                 if(args.length > 1) return new ResponseObject(ResponseObject.Result.ERROR, TOO_MANY, null, null, null);
                 return this.unfollowUser(args[0]);
 
+            case "blog":
+                return this.viewBlog();
+
+            case "post":
+                if(args == null || args.length == 0) return new ResponseObject(ResponseObject.Result.ERROR, "You have to specify a title for the post", null, null, null);
+                if(args.length == 1) return new ResponseObject(ResponseObject.Result.ERROR, "You need to write content for the post (between apices)", null, null, null);
+                StringTokenizer tokenizer = new StringTokenizer(String.join(" ", Arrays.asList(args)), "-");
+                if(tokenizer.countTokens() != 2) return new ResponseObject(ResponseObject.Result.ERROR, "Correct format is: Title - Content", null, null, null);
+                String title = tokenizer.nextToken();
+                String content = tokenizer.nextToken();
+                return this.createPost(title, content);
+
+            case "show":
+                if(args == null || args.length == 0) return new ResponseObject(ResponseObject.Result.ERROR, INCOMPLETE, null, null, null);
+                if(args[0].equals("feed")) {
+                    if(args.length > 1) return new ResponseObject(ResponseObject.Result.ERROR, INVALID, null, null, null);
+                    return this.showFeed();
+                }
+                else if(args[0].equals("post")) {
+                    if(args.length < 2) return new ResponseObject(ResponseObject.Result.ERROR, "You have to specify a post ID", null, null, null);
+                    if(args.length > 2) return new ResponseObject(ResponseObject.Result.ERROR, TOO_MANY, null, null, null);
+                    return this.showPost(args[1]);
+                }
+                else break;
+
+            case "delete":
+                if(args == null || args.length == 0) return new ResponseObject(ResponseObject.Result.ERROR, INCOMPLETE, null, null, null);
+                if(args.length > 1) return new ResponseObject(ResponseObject.Result.ERROR, TOO_MANY, null, null, null);
+                return this.deletePost(args[0]);
+
+            case "rewin":
+                if(args == null || args.length == 0) return new ResponseObject(ResponseObject.Result.ERROR, INCOMPLETE, null, null, null);
+                if(args.length > 1) return new ResponseObject(ResponseObject.Result.ERROR, TOO_MANY, null, null, null);
+                return this.rewinPost(args[0]);
+
+            case "rate":
+            if(args == null || args.length == 0) return new ResponseObject(ResponseObject.Result.ERROR, INCOMPLETE, null, null, null);
+            if(args.length == 1) return new ResponseObject(ResponseObject.Result.ERROR, "You have to specify the post ID and your vote (+1/-1)", null, null, null);
+            if(args.length > 2) return new ResponseObject(ResponseObject.Result.ERROR, TOO_MANY, null, null, null);
+            return this.ratePost(args[0], args[1]);
+
             default:
                 break;
         }
 
-        return new ResponseObject(ResponseObject.Result.ERROR, "Invalid command", null, null, null);
+        return new ResponseObject(ResponseObject.Result.ERROR, INVALID, null, null, null);
     }
 
 
@@ -164,7 +210,7 @@ public class ClientShell implements WinsomeInterface {
 
     public ResponseObject login(String username, String password) {
         String command = "login";
-        RequestObject request = new RequestObject(this.authToken, command, username, password, null, null, false);
+        RequestObject request = new RequestObject(this.authToken, command, username, password, null, null, null);
         this.sendRequest(request);
 
         ResponseObject response = readResponse();
@@ -177,11 +223,9 @@ public class ClientShell implements WinsomeInterface {
     }
 
     public ResponseObject logout() {
-        // failing if the user is not logged
-        if(!this.isLogged) return new ResponseObject(ResponseObject.Result.ERROR, NOT_LOGGED, null, null, null);
 
         String command = "logout";
-        RequestObject request = new RequestObject(this.authToken, command, null, null, null, null, false);
+        RequestObject request = new RequestObject(this.authToken, command, null, null, null, null, null);
         this.sendRequest(request);
 
         ResponseObject response = readResponse();
@@ -194,74 +238,115 @@ public class ClientShell implements WinsomeInterface {
     }
 
     public ResponseObject listUsers() {
-        // failing if the user is not logged
-        if(!this.isLogged) return new ResponseObject(ResponseObject.Result.ERROR, NOT_LOGGED, null, null, null);
 
         String command = "list users";
-        RequestObject request = new RequestObject(this.authToken, command, null, null, null, null, false);
+        RequestObject request = new RequestObject(this.authToken, command, null, null, null, null, null);
         this.sendRequest(request);
 
-        ResponseObject response = readResponse();
-
-        return response;
+        return readResponse();
     }
 
     public ResponseObject listFollowers() {
-        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null, null, null);
+        // CODE
+        return null;
     }
 
     public ResponseObject listFollowing() {
-        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null, null, null);
+
+        String command ="list following";
+        RequestObject request = new RequestObject(this.authToken, command, null, null, null, null, null);
+        this.sendRequest(request);
+
+        return readResponse();
     }
 
     public ResponseObject followUser(String userId) {
-        // failing if the user is not logged
-        if(!this.isLogged) return new ResponseObject(ResponseObject.Result.ERROR, NOT_LOGGED, null, null, null);
 
         String command = "follow";
-        RequestObject request = new RequestObject(this.authToken, command, userId, null, null, null, false);
+        RequestObject request = new RequestObject(this.authToken, command, userId, null, null, null, null);
         sendRequest(request);
 
         return readResponse();
     }
 
     public ResponseObject unfollowUser(String userId) {
-        // failing if the user is not logged
-        if(!this.isLogged) return new ResponseObject(ResponseObject.Result.ERROR, NOT_LOGGED, null, null, null);
 
         String command = "unfollow";
-        RequestObject request = new RequestObject(this.authToken, command, userId, null, null, null, false);
+        RequestObject request = new RequestObject(this.authToken, command, userId, null, null, null, null);
         sendRequest(request);
 
         return readResponse();
     }
 
     public ResponseObject viewBlog() {
-        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null, null, null);
+
+        String command = "blog";
+        RequestObject request = new RequestObject(this.authToken, command, null, null, null, null, null);
+        sendRequest(request);
+
+        return readResponse();
     }
 
     public ResponseObject createPost(String title, String content) {
-        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null, null, null);
+
+        String command = "post";
+        RequestObject request = new RequestObject(this.authToken, command, null, null, new Post(title, content, null, null, false), null, null);
+        sendRequest(request);
+
+        return readResponse();
     }
 
     public ResponseObject showFeed() {
-        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null, null, null);
+
+        String command = "show feed";
+        RequestObject request = new RequestObject(this.authToken, command, null, null, null, null, null);
+        sendRequest(request);
+
+        return readResponse();
     }
 
     public ResponseObject showPost(String postId) {
-        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null, null, null);
+
+        String command = "show post";
+        ArrayList<String> data = new ArrayList<>();
+        data.add(postId);
+        RequestObject request = new RequestObject(this.authToken, command, null, null, null, null, data);
+        sendRequest(request);
+
+        return readResponse();
     }
 
     public ResponseObject deletePost(String postId) {
-        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null, null, null);
+
+        String command = "delete";
+        ArrayList<String> data = new ArrayList<>();
+        data.add(postId);
+        RequestObject request = new RequestObject(this.authToken, command, null, null, null, null, data);
+        sendRequest(request);
+
+        return readResponse();
     }
 
     public ResponseObject rewinPost(String postId) {
-        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null, null, null);
+
+        String command = "rewin";
+        ArrayList<String> data = new ArrayList<>();
+        data.add(postId);
+        RequestObject request = new RequestObject(this.authToken, command, null, null, null, null, data);
+        sendRequest(request);
+
+        return readResponse();
     }
 
-    public ResponseObject ratePost(String postId) {
-        return new ResponseObject(ResponseObject.Result.SUCCESS, "Success", null, null, null);
+    public ResponseObject ratePost(String postId, String vote) {
+
+        String command = "rate";
+        ArrayList<String> data = new ArrayList<>();
+        data.add(postId); data.add(vote);
+        RequestObject request = new RequestObject(this.authToken, command, null, null, null, null, data);
+        sendRequest(request);
+
+        return readResponse();
     }
 
     public ResponseObject addComment(String postId, String comment) {

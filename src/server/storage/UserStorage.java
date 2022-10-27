@@ -109,7 +109,7 @@ public class UserStorage extends Storage<User> {
 
 
     // getter
-    public List<User> getUserSet() {
+    public ArrayList<User> getUserSet() {
         return new ArrayList<>(this.data.values());
     }
 

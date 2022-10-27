@@ -109,7 +109,7 @@ public class PostStorage extends Storage<Post> {
 
 
     // getter
-    public List<Post> getPostSet() {
+    public ArrayList<Post> getPostSet() {
         return new ArrayList<>(this.data.values());
     }
 

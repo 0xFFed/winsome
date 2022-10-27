@@ -115,12 +115,44 @@ class ServerWorker implements Runnable {
                     this.listUsers(task.getRequest(), task.getSock());
                     break;
 
+                case "list following":
+                    this.listFollowing(task.getRequest(), task.getSock());
+                    break;
+
                 case "follow":
                     this.followUser(task.getRequest(), task.getSock());
                     break;
 
                 case "unfollow":
                     this.unfollowUser(task.getRequest(), task.getSock());
+                    break;
+
+                case "blog":
+                    this.viewBlog(task.getRequest(), task.getSock());
+                    break;
+
+                case "post":
+                    this.createPost(task.getRequest(), task.getSock());
+                    break;
+
+                case "show feed":
+                    this.showFeed(task.getRequest(), task.getSock());
+                    break;
+
+                case "show post":
+                    this.showPost(task.getRequest(), task.getSock());
+                    break;
+
+                case "delete":
+                    this.deletePost(task.getRequest(), task.getSock());
+                    break;
+
+                case "rewin":
+                    this.rewinPost(task.getRequest(), task.getSock());
+                    break;
+
+                case "rate":
+                    this.ratePost(task.getRequest(), task.getSock());
                     break;
             
                 default:
@@ -265,6 +297,9 @@ class ServerWorker implements Runnable {
             sendResponse(response, sock);
             return;
         }
+
+        ResponseObject response = new ResponseObject(ResponseObject.Result.SUCCESS, "You are following: "+String.join(", ", user.getFollowings()), null, user.getFollowings(), null);
+        sendResponse(response, sock);
     }
 
     
@@ -304,6 +339,7 @@ class ServerWorker implements Runnable {
 
     }
 
+
     private void unfollowUser(RequestObject request, SocketChannel sock) {
         User user = this.loggedUsers.get(request.getToken());
 
@@ -339,21 +375,260 @@ class ServerWorker implements Runnable {
         }
     }
 
+    
+    private void viewBlog(RequestObject request, SocketChannel sock) {
+        User user = this.loggedUsers.get(request.getToken());
+
+        if(Objects.isNull(user)) {
+            ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
+            sendResponse(response, sock);
+            return;
+        }
+
+        ArrayList<Post> allPosts = this.serverStorage.getPostStorage().getPostSet();
+        ArrayList<String> result = new ArrayList<>();
+
+        Iterator<Post> postIter = allPosts.iterator();
+        while(postIter.hasNext()) {
+            Post currPost = postIter.next();
+            if(currPost.getAuthor().equals(user.getUsername())) {
+                result.add("Post ID: "+currPost.getPostId()+"\nAuthor: "+currPost.getAuthor()+"\nTitle: "+currPost.getTitle());
+            }
+        }
+
+        ResponseObject response = new ResponseObject(ResponseObject.Result.SUCCESS, "Your blog:\n##########\n"+String.join("\n##########\n", result), null, result, null);
+        sendResponse(response, sock);
+    }
+
+    
+    private void createPost(RequestObject request, SocketChannel sock) {
+        User user = this.loggedUsers.get(request.getToken());
+
+        if(Objects.isNull(user)) {
+            ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
+            sendResponse(response, sock);
+            return;
+        }
+
+        Post newPost = new Post(request.getPost().getTitle(), request.getPost().getContent(), user.getUsername(), null, false);
+        boolean success = this.serverStorage.getPostStorage().add(Integer.toString(newPost.getPostId()), newPost);
+
+        if(success) {
+            ResponseObject response = new ResponseObject(ResponseObject.Result.SUCCESS, "Post added", null, null, null);
+            sendResponse(response, sock);
+        }
+        else {
+            ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "Error adding post", null, null, null);
+            sendResponse(response, sock);
+        }
+    }
+
+    
+    private void showFeed(RequestObject request, SocketChannel sock) {
+        User user = this.loggedUsers.get(request.getToken());
+
+        if(Objects.isNull(user)) {
+            ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
+            sendResponse(response, sock);
+            return;
+        }
+
+        ArrayList<String> following = user.getFollowings();
+        ArrayList<Post> allPosts = this.serverStorage.getPostStorage().getPostSet();
+        ArrayList<String> result = new ArrayList<>();
+        
+        Iterator<Post> postIter = allPosts.iterator();
+        while(postIter.hasNext()) {
+            Post currPost = postIter.next();
+            if(following.contains(currPost.getAuthor())) {
+                result.add("Post ID: "+currPost.getPostId()+"\nAuthor: "+currPost.getAuthor()+"\nTitle: "+currPost.getTitle());
+            }
+        }
+
+        ResponseObject response = new ResponseObject(ResponseObject.Result.SUCCESS, "Your feed:\n##########\n"+String.join("\n##########\n", result), null, result, null);
+        sendResponse(response, sock);
+    }
+
+    
+    private void showPost(RequestObject request, SocketChannel sock) {
+        User user = this.loggedUsers.get(request.getToken());
+
+        if(Objects.isNull(user)) {
+            ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
+            sendResponse(response, sock);
+            return;
+        }
+
+        Post post = this.serverStorage.getPostStorage().get(request.getData().get(0));
+
+        if(Objects.isNull(post)) {
+            ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "This post does not exist", null, null, null);
+            sendResponse(response, sock);
+            return;
+        }
+
+        ArrayList<Comment> comments = post.getComments();
+        ArrayList<String> commentList = new ArrayList<>();
+        Iterator<Comment> commentIter = comments.iterator();
+        while(commentIter.hasNext()) {
+            Comment currComment = commentIter.next();
+            commentList.add(currComment.toString());
+        }
+
+        String result = "\n##########\nTitle: "+post.getTitle()+"\nContent: "+post.getContent()+"\nLikes: "+
+            post.getLikes().size()+"\nDislikes: "+post.getDislikes().size()+"\nComments: "+String.join("\n----------\n", commentList);
+        if(post.isRewin()) result = result+"----------\n(Rewin from "+post.getOriginalAuthor()+"'s post)";
+        
+        ResponseObject response = new ResponseObject(ResponseObject.Result.SUCCESS, result, null, null, null);
+        sendResponse(response, sock);
+    }
+
+    
+    private void deletePost(RequestObject request, SocketChannel sock) {
+        User user = this.loggedUsers.get(request.getToken());
+
+        if(Objects.isNull(user)) {
+            ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
+            sendResponse(response, sock);
+            return;
+        }
+
+        Post post = this.serverStorage.getPostStorage().get(request.getData().get(0));
+
+        if(Objects.isNull(post)) {
+            ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "The post does not exist", null, null, null);
+            sendResponse(response, sock);
+            return;
+        }
+
+        if(post.getAuthor().equals(user.getUsername())) {
+            this.serverStorage.getPostStorage().remove(request.getData().get(0));
+            ResponseObject response = new ResponseObject(ResponseObject.Result.SUCCESS, "Post succesfully removed", null, null, null);
+            sendResponse(response, sock);
+        }
+        else {
+            ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not the post owner", null, null, null);
+            sendResponse(response, sock);
+        }
+    }
+
+    
+    private void rewinPost(RequestObject request, SocketChannel sock) {
+        User user = this.loggedUsers.get(request.getToken());
+
+        if(Objects.isNull(user)) {
+            ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
+            sendResponse(response, sock);
+            return;
+        }
+
+        Post post = this.serverStorage.getPostStorage().get(request.getData().get(0));
+
+        if(Objects.isNull(post)) {
+            ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "The post does not exist", null, null, null);
+            sendResponse(response, sock);
+            return;
+        }
+
+        if(post.getAuthor().equals(user.getUsername()) || post.getOriginalAuthor().equals(user.getUsername())) {
+            this.serverStorage.getPostStorage().remove(request.getData().get(0));
+            ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are the author of this post", null, null, null);
+            sendResponse(response, sock);
+            return;
+        }
+
+
+        ArrayList<String> following = user.getFollowings();
+        ArrayList<Post> allPosts = this.serverStorage.getPostStorage().getPostSet();
+        ArrayList<String> feedPostsId = new ArrayList<>();
+        
+        Iterator<Post> postIter = allPosts.iterator();
+        while(postIter.hasNext()) {
+            Post currPost = postIter.next();
+            if(following.contains(currPost.getAuthor())) {
+                feedPostsId.add(Integer.toString(currPost.getPostId()));
+            }
+        }
+
+        if(feedPostsId.contains(request.getData().get(0))) {
+            Post rewin = new Post(post.getTitle(), post.getContent(), user.getUsername(), post.getAuthor(), true);
+            this.serverStorage.getPostStorage().add(Integer.toString(rewin.getPostId()), rewin);
+            ResponseObject response = new ResponseObject(ResponseObject.Result.SUCCESS, "Rewin completed", null, null, null);
+            sendResponse(response, sock);
+        }
+        else {
+            ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "The post is not on your feed", null, null, null);
+            sendResponse(response, sock);
+        }
+    }
+
+    
+    private void ratePost(RequestObject request, SocketChannel sock) {
+        User user = this.loggedUsers.get(request.getToken());
+
+        if(Objects.isNull(user)) {
+            ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
+            sendResponse(response, sock);
+            return;
+        }
+
+        Post post = this.serverStorage.getPostStorage().get(request.getData().get(0));
+
+        if(Objects.isNull(post)) {
+            ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "The post does not exist", null, null, null);
+            sendResponse(response, sock);
+            return;
+        }
+
+        if(post.getAuthor().equals(user.getUsername())) {
+            this.serverStorage.getPostStorage().remove(request.getData().get(0));
+            ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are the author of this post", null, null, null);
+            sendResponse(response, sock);
+            return;
+        }
+
+        if(Objects.isNull(request.getData().get(0)) || Objects.isNull(request.getData().get(1)) ||
+            (!(request.getData().get(1).equals("+1")) && !(request.getData().get(1).equals("-1")))) {
+                ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "Invalid vote", null, null, null);
+                sendResponse(response, sock);
+                return;
+        }
+
+
+        ArrayList<String> following = user.getFollowings();
+        ArrayList<Post> allPosts = this.serverStorage.getPostStorage().getPostSet();
+        ArrayList<String> feedPostsId = new ArrayList<>();
+        
+        Iterator<Post> postIter = allPosts.iterator();
+        while(postIter.hasNext()) {
+            Post currPost = postIter.next();
+            if(following.contains(currPost.getAuthor())) {
+                feedPostsId.add(Integer.toString(currPost.getPostId()));
+            }
+        }
+
+        if(feedPostsId.contains(request.getData().get(0))) {
+            boolean success = false;
+            if(request.getData().get(1).equals("+1")) success = post.like(user);
+            else if(request.getData().get(1).equals("-1")) success = post.dislike(user);
+
+            if(success) {
+                this.serverStorage.getPostStorage().write();
+                ResponseObject response = new ResponseObject(ResponseObject.Result.SUCCESS, "You rated the post", null, null, null);
+                sendResponse(response, sock);
+            }
+            else {
+                ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You already voted this post", null, null, null);
+                sendResponse(response, sock);
+            }
+        }
+        else {
+            ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "The post is not on your feed", null, null, null);
+            sendResponse(response, sock);
+        }
+    }
+
     /*
-    private void viewBlog(RequestObject request, SocketChannel sock);
-
-    private void createPost(RequestObject request, SocketChannel sock);
-
-    private void showFeed(RequestObject request, SocketChannel sock);
-
-    private void showPost(RequestObject request, SocketChannel sock);
-
-    private void deletePost(RequestObject request, SocketChannel sock);
-
-    private void rewinPost(RequestObject request, SocketChannel sock);
-
-    private void ratePost(RequestObject request, SocketChannel sock);
-
     private void addComment(RequestObject request, SocketChannel sock);
 
     private void getWallet(RequestObject request, SocketChannel sock);

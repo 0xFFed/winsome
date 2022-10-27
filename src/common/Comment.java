@@ -32,4 +32,10 @@ public class Comment implements Serializable {
     public String getContent() {
         return this.content;
     }
+
+
+    @Override
+    public String toString() {
+        return "Comment: [Author: "+this.author+"\nContent: "+this.content+"]";
+    }
 }

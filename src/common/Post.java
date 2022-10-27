@@ -1,8 +1,10 @@
 package common;
 
 import java.io.Serializable;
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class Post implements Serializable {
@@ -17,25 +19,25 @@ public class Post implements Serializable {
     private String content;
     private String author;
     private String originalAuthor;
-    private boolean isRewin;
-    private ArrayList<String> likes;
-    private ArrayList<Comment> comments;
+    private boolean rewin;
+    private ArrayList<String> likes = new ArrayList<>();
+    private ArrayList<String> dislikes = new ArrayList<>();
+    private ArrayList<Comment> comments = new ArrayList<>();
 
 
     // ########## METHODS ##########
 
-    public Post(String title, String content, String author, String originalAuthor, boolean isRewin) throws NullPointerException {
+    public Post(String title, String content, String author, String originalAuthor, boolean rewin) throws NullPointerException {
         Objects.requireNonNull(title, "title cannot be null");
         Objects.requireNonNull(content, "content cannot be null");
-        Objects.requireNonNull(author, "author cannot be null");
 
         this.postId = counter.get();
         this.title = title;
         this.content = content;
         this.author = author;
-        if(isRewin) this.originalAuthor = Objects.requireNonNull(originalAuthor);
+        if(rewin) this.originalAuthor = Objects.requireNonNull(originalAuthor);
         else this.originalAuthor = author;
-        this.isRewin = isRewin;
+        this.rewin = rewin;
     }
 
 
@@ -65,17 +67,22 @@ public class Post implements Serializable {
     }
 
     // getter
-    public boolean getType() {
-        return this.isRewin;
+    public boolean isRewin() {
+        return this.rewin;
     }
 
     // getter
-    public ArrayList<String> getLikes() {
+    public synchronized ArrayList<String> getLikes() {
         return this.likes;
     }
 
     // getter
-    public ArrayList<Comment> getComments() {
+    public synchronized ArrayList<String> getDislikes() {
+        return this.dislikes;
+    }
+
+    // getter
+    public synchronized ArrayList<Comment> getComments() {
         return this.comments;
     }
 
@@ -87,5 +94,27 @@ public class Post implements Serializable {
     // setter
     public static void setCounter(int value) {
         counter.set(value);
+    }
+
+    // setter
+    public synchronized boolean like(User user) {
+        if(this.likes.contains(user.getUsername()) || this.dislikes.contains(user.getUsername())) {
+            return false;
+        }
+        else {
+            this.likes.add(user.getUsername());
+            return true;
+        }
+    }
+
+    // setter
+    public synchronized boolean dislike(User user) {
+        if(this.likes.contains(user.getUsername()) || this.dislikes.contains(user.getUsername())) {
+            return false;
+        }
+        else {
+            this.dislikes.add(user.getUsername());
+            return true;
+        }
     }
 }
