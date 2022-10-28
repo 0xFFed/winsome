@@ -3,8 +3,10 @@ package common;
 import java.io.Serializable;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class Post implements Serializable {
@@ -20,9 +22,9 @@ public class Post implements Serializable {
     private String author;
     private String originalAuthor;
     private boolean rewin;
-    private ArrayList<String> likes = new ArrayList<>();
-    private ArrayList<String> dislikes = new ArrayList<>();
-    private ArrayList<Comment> comments = new ArrayList<>();
+    private ConcurrentHashMap<String,Boolean> likes = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String,Boolean> dislikes = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<Comment,Boolean> comments = new ConcurrentHashMap<>();
 
 
     // ########## METHODS ##########
@@ -70,18 +72,30 @@ public class Post implements Serializable {
     }
 
     // getter
-    public synchronized ArrayList<String> getLikes() {
-        return this.likes;
+    public ArrayList<String> getLikes() {
+        
+        ArrayList<String> likesArray = new ArrayList<>();
+        this.likes.forEach((username, value) -> likesArray.add(username));
+
+        return likesArray;
     }
 
     // getter
-    public synchronized ArrayList<String> getDislikes() {
-        return this.dislikes;
+    public ArrayList<String> getDislikes() {
+        
+        ArrayList<String> dislikesArray = new ArrayList<>();
+        this.dislikes.forEach((username, value) -> dislikesArray.add(username));
+
+        return dislikesArray;
     }
 
     // getter
-    public synchronized ArrayList<Comment> getComments() {
-        return this.comments;
+    public ArrayList<Comment> getComments() {
+
+        ArrayList<Comment> commentsArray = new ArrayList<>();
+        this.comments.forEach((comment, value) -> commentsArray.add(comment));
+
+        return commentsArray;
     }
 
     // getter/setter
@@ -100,14 +114,9 @@ public class Post implements Serializable {
             return false;
         }
         else {
-            this.likes.add(user.getUsername());
+            this.likes.putIfAbsent(user.getUsername(), Boolean.FALSE);
             return true;
         }
-    }
-
-    // setter
-    public synchronized void addComment(Comment comment) {
-        this.comments.add(comment);
     }
 
     // setter
@@ -116,8 +125,13 @@ public class Post implements Serializable {
             return false;
         }
         else {
-            this.dislikes.add(user.getUsername());
+            this.dislikes.putIfAbsent(user.getUsername(), Boolean.FALSE);
             return true;
         }
+    }
+
+    // setter
+    public synchronized void addComment(Comment comment) {
+        this.comments.putIfAbsent(comment, Boolean.FALSE);
     }
 }

@@ -4,6 +4,8 @@ import java.rmi.RemoteException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Objects;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import common.User;
 import common.crypto.Cryptography;
@@ -23,7 +25,7 @@ public class RemoteRegistration implements RemoteRegistrationInterface {
         this.serverStorage = Objects.requireNonNull(serverStorage, "Server storage cannot be null");
     }
     
-    public ResponseObject register(String username, String password, ArrayList<String> tags) throws RemoteException {
+    public ResponseObject register(String username, String password, ConcurrentLinkedQueue<String> tags) throws RemoteException {
         boolean success = false;
 
         try {

@@ -1,7 +1,9 @@
 package common;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class User {
@@ -12,17 +14,17 @@ public class User {
     private int userId;
     private String username;
     private String password;
-    private ArrayList<String> tags = new ArrayList<>();
-    private ArrayList<String> followers = new ArrayList<>();
-    private ArrayList<String> followings = new ArrayList<>();
-    private ArrayList<Transaction> transactionHistory = new ArrayList<>();
+    private ConcurrentLinkedQueue<String> tags = new ConcurrentLinkedQueue<>();
+    private ConcurrentLinkedQueue<String> followers = new ConcurrentLinkedQueue<>();
+    private ConcurrentLinkedQueue<String> followings = new ConcurrentLinkedQueue<>();
+    private ConcurrentLinkedQueue<Transaction> transactionHistory = new ConcurrentLinkedQueue<>();
     private int balance;
 
 
     // ########## METHODS ##########
 
     // constructor
-    public User(String username, String password, ArrayList<String> tags) throws NullPointerException {
+    public User(String username, String password, ConcurrentLinkedQueue<String> tags) throws NullPointerException {
         Objects.requireNonNull(username, "username cannot be null");
         Objects.requireNonNull(password, "password cannot be null");
 
@@ -49,23 +51,23 @@ public class User {
     }
 
     // getter
-    public synchronized ArrayList<String> getTags() {
-        return this.tags;
+    public ArrayList<String> getTags() {
+        return new ArrayList<>(this.tags);
     }
 
     // getter
-    public synchronized ArrayList<String> getFollowers() {
-        return this.followers;
+    public ArrayList<String> getFollowers() {
+        return new ArrayList<>(this.followers);
     }
 
     // getter
-    public synchronized ArrayList<String> getFollowings() {
-        return this.followings;
+    public ArrayList<String> getFollowings() {
+        return new ArrayList<>(this.followings);
     }
 
     // getter
-    public synchronized ArrayList<Transaction> getTransactionHistory() {
-        return this.transactionHistory;
+    public ArrayList<Transaction> getTransactionHistory() {
+        return new ArrayList<>(this.transactionHistory);
     }
 
     // getter

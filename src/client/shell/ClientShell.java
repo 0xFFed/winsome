@@ -11,7 +11,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.Queue;
 import java.util.StringTokenizer;
+import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -234,7 +237,7 @@ public class ClientShell implements WinsomeInterface {
 
     public ResponseObject register(String username, String password, String[] tags) throws RemoteException {
         if(this.isLogged) return new ResponseObject(Result.ERROR, "You are already logged in.", null, null, null);
-        ArrayList<String> tagsList = new ArrayList<>(Arrays.asList(tags));
+        ConcurrentLinkedQueue<String> tagsList = new ConcurrentLinkedQueue<>(Arrays.asList(tags));
         return this.rmiRegistration.register(username, password, tagsList);
     }
 
