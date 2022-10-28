@@ -30,9 +30,12 @@ public class Config {
 
     // ########## METHODS ##########
 
-    // constructor
     protected Config() {}
 
+    
+    /** 
+     * @return Config
+     */
     // returns a parsed config object
     public static Config getConfig() {
         Gson gson = new GsonBuilder().serializeNulls().create();
@@ -48,42 +51,66 @@ public class Config {
         return result;
     }
 
-    // getter
+    
+    /** 
+     * @return InetAddress
+     */
     public InetAddress getAddr() {
         return this.serverAddr;
     }
 
-    // getter
+    
+    /** 
+     * @return int
+     */
     public int getPort() {
         return this.serverPort;
     }
 
-    // getter
+    
+    /** 
+     * @return String
+     */
     public String getRmiAddr() {
         return this.rmiAddr;
     }
 
-    // getter
+    
+    /** 
+     * @return int
+     */
     public int getRmiPort() {
         return this.rmiPort;
     }
 
-    // getter
+    
+    /** 
+     * @return String
+     */
     public String getRmiName() {
         return this.rmiName;
     }
 
-    // getter
+    
+    /** 
+     * @return String
+     */
     public String getCallbackAddr() {
         return this.callbackAddr;
     }
 
-    // getter
+    
+    /** 
+     * @return int
+     */
     public int getCallbackPort() {
         return this.callbackPort;
     }
 
-    // getter
+    
+    /** 
+     * @return String
+     */
     public String getCallbackName() {
         return this.callbackName;
     }

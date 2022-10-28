@@ -5,6 +5,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.Objects;
 
 public abstract class Cryptography {
 
@@ -17,18 +18,42 @@ public abstract class Cryptography {
     private Cryptography() {}
 
 
+    
+    /** 
+     * @return String
+     */
+    // generates a cryptographically secure token for authentication purposes
     public static String getSecureToken() {
         byte[] newToken = new byte[TOKEN_LEN];
         randomGenerator.nextBytes(newToken);
         return base64Encoder.encodeToString(newToken);
     }
 
-    public static String digest(String message) throws NoSuchAlgorithmException {
+    
+    /** 
+     * @param message
+     * @return String
+     * @throws NoSuchAlgorithmException
+     * @throws NullPointerException
+     */
+    // generates an MD5 digest of the message. NOTE: not cryptographically secure for production
+    public static String digest(String message) throws NoSuchAlgorithmException, NullPointerException {
+        Objects.requireNonNull(message);
+
         return bytesToHex(MessageDigest.getInstance(HASH_ALG).digest(message.getBytes()));
     }
 
-    // @author: maybewecouldstealavan on StackOverflow
-    public static String bytesToHex(byte[] bytes) {
+    
+    /** 
+     * @param bytes
+     * @return String
+     * @throws NullPointerException
+     * @author: maybewecouldstealavan on StackOverflow
+     */
+    // converts a byte array to an hex-encoded string
+    public static String bytesToHex(byte[] bytes) throws NullPointerException {
+        Objects.requireNonNull(bytes);
+
         byte[] hexChars = new byte[bytes.length * 2];
         for (int j = 0; j < bytes.length; j++) {
             int v = bytes[j] & 0xFF;

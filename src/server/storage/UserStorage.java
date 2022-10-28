@@ -54,9 +54,7 @@ public class UserStorage extends Storage<User> {
             System.exit(1);
         }
 
-
         Gson gson = new GsonBuilder().serializeNulls().create();
-
         try(FileReader reader = new FileReader(this.counterFilePath)) {
             JsonReader jsonReader = new JsonReader(reader);
             jsonReader.setLenient(true);
@@ -73,6 +71,7 @@ public class UserStorage extends Storage<User> {
     }
 
 
+    // used to initially load data from local storage
     private void loadData() {
         Gson gson = new GsonBuilder().serializeNulls().create();
         
@@ -91,7 +90,7 @@ public class UserStorage extends Storage<User> {
     }
 
 
-    // setter
+    // used to update and write to local storage the counter values
     private synchronized void updateCounterFile() {
 
         Gson gson = new GsonBuilder().serializeNulls().create();
@@ -108,12 +107,23 @@ public class UserStorage extends Storage<User> {
     }
 
 
+    
+    /** 
+     * @return ArrayList<User>
+     */
     // getter
     public ArrayList<User> getUserSet() {
         return new ArrayList<>(this.data.values());
     }
 
 
+    
+    /** 
+     * @param key
+     * @param elem
+     * @return boolean
+     * @throws NullPointerException
+     */
     @Override
     public boolean add(String key, User elem) throws NullPointerException {
         boolean result = super.add(key, elem);

@@ -49,6 +49,7 @@ public class Storage<T> {
     }
 
 
+    // method used to write all changes in users/posts in-memory data structures to local storage
     public synchronized void write() {
         Gson gson = new GsonBuilder().serializeNulls().create();
         try(FileWriter writer = new FileWriter(this.storageFilePath)) {
@@ -62,6 +63,13 @@ public class Storage<T> {
     }
 
 
+    
+    /** 
+     * @param key
+     * @param elem
+     * @return boolean
+     * @throws NullPointerException
+     */
     public boolean add(String key, T elem) throws NullPointerException {
         Objects.requireNonNull(key, "Username cannot be null");
         Objects.requireNonNull(elem, "User data cannot be null");
@@ -77,22 +85,45 @@ public class Storage<T> {
     }
 
 
-    public void remove(String key) {
+    
+    /** 
+     * @param key
+     * @throws NullPointerException
+     */
+    public void remove(String key) throws NullPointerException {
+        Objects.requireNonNull(key);
+
         this.data.remove(key);
         this.write();
     }
 
 
-    public T get(String key) {
+    
+    /** 
+     * @param key
+     * @return T
+     * @throws NullPointerException
+     */
+    public T get(String key) throws NullPointerException {
+        Objects.requireNonNull(key);
+
         return this.data.get(key);
     }
 
 
+    
+    /** 
+     * @return String
+     */
     protected String getStorageDirPath() {
         return this.storageDirPath;
     }
 
 
+    
+    /** 
+     * @return String
+     */
     protected String getStorageFilePath() {
         return this.storageFilePath;
     }

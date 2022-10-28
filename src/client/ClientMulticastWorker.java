@@ -50,7 +50,7 @@ public class ClientMulticastWorker implements Runnable {
             }
 
             String message = new String(buffer, StandardCharsets.UTF_8);
-            System.out.print(message+"\n\n>");
+            System.out.print(message+"\n\n> ");
         }
     }
 }

@@ -60,6 +60,10 @@ public class ServerConfig extends Config {
         super();
     }
 
+    
+    /** 
+     * @return ServerConfig
+     */
     // returns a parsed config object
     public static ServerConfig getServerConfig() {
 
@@ -88,57 +92,90 @@ public class ServerConfig extends Config {
         return gson.fromJson(configJson, ServerConfig.class);
     }
 
-    // getter
+    
+    /** 
+     * @return int
+     */
     public int getTimeout() {
         return this.selTimeout;
     }
 
-    // getter
+    
+    /** 
+     * @return String
+     */
     public String getStoragePath() {
         return this.storagePath;
     }
 
-    // getter
+    
+    /** 
+     * @return String
+     */
     public String getUserStoragePath() {
         return this.userStoragePath;
     }
 
-    // getter
+    
+    /** 
+     * @return String
+     */
     public String getPostStoragePath() {
         return this.postStoragePath;
     }
 
-    // getter
+    
+    /** 
+     * @return String
+     */
     public String getUserCounterPath() {
         return this.userCounterPath;
     }
 
-    // getter
+    
+    /** 
+     * @return String
+     */
     public String getPostCounterPath() {
         return this.postCounterPath;
     }
 
-    // getter
+    
+    /** 
+     * @return String
+     */
     public String getMulticastAddress() {
         return this.multicastAddress;
     }
 
-    // getter
+    
+    /** 
+     * @return int
+     */
     public int getMulticastPort() {
         return this.multicastPort;
     }
 
-    // getter
+    
+    /** 
+     * @return int
+     */
     public int getMulticastTimer() {
         return this.multicastTimer;
     }
 
-    // getter
+    
+    /** 
+     * @return int
+     */
     public int getCoreMult() {
         return this.threadsPerCore;
     }
 
-    // getter
+    
+    /** 
+     * @return double
+     */
     public double getAuthorPercentage() {
         return this.authorPercentage;
     }

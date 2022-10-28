@@ -61,6 +61,10 @@ public class ClientMain implements Runnable {
     }
 
 
+    
+    /** 
+     * @throws IOException
+     */
     // initiates the connection setting up the Socket
     private void initConnection() throws IOException {
 
@@ -73,6 +77,12 @@ public class ClientMain implements Runnable {
     }
 
 
+    
+    /** 
+     * @return RemoteRegistrationInterface
+     * @throws RemoteException
+     * @throws NotBoundException
+     */
     // connects to the remote registration object
     private RemoteRegistrationInterface rmiConnect() throws RemoteException, NotBoundException {
         Remote stub;
@@ -82,6 +92,11 @@ public class ClientMain implements Runnable {
     }
 
 
+    
+    /** 
+     * @throws RemoteException
+     * @throws NotBoundException
+     */
     // registers for the follow/unfollow notification service
     private void setupCallbackService() throws RemoteException,NotBoundException {
         Registry reg = LocateRegistry.getRegistry(ClientMain.config.getCallbackPort());
@@ -108,6 +123,10 @@ public class ClientMain implements Runnable {
         
     }
 
+    
+    /** 
+     * @param message
+     */
     // prints the given message formatted according to the winsome shell visualization
     public void shellPrint(String message) {
         System.out.println("< "+message);
@@ -141,6 +160,7 @@ public class ClientMain implements Runnable {
                     while(st.hasMoreTokens()) args[counter++] = st.nextToken();
                 }
 
+                // prints the request's response
                 shellPrint(this.shell.parseCommand(command, args).getOutput());
             }
 
@@ -156,6 +176,10 @@ public class ClientMain implements Runnable {
     }
 
 
+    
+    /** 
+     * @param args
+     */
     public static void main(String[] args) {
         try {
             new Thread(new ClientMain()).start();

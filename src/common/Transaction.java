@@ -16,12 +16,18 @@ public class Transaction {
     }
 
 
-    // getter
+    
+    /** 
+     * @return double
+     */
     public double getValue() {
         return this.value;
     }
 
-    // getter
+    
+    /** 
+     * @return String
+     */
     public String getTime() {
         return this.timestamp;
     }

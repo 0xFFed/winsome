@@ -82,6 +82,13 @@ public class ClientShell implements WinsomeInterface {
     }
 
 
+    
+    /** 
+     * @param command
+     * @param args
+     * @return ResponseObject
+     * @throws RemoteException
+     */
     // function used to parse given commands
     public ResponseObject parseCommand(String command, String[] args) throws RemoteException {
         Objects.requireNonNull(command, "command cannot be null");
@@ -188,6 +195,10 @@ public class ClientShell implements WinsomeInterface {
     }
 
 
+    
+    /** 
+     * @return ResponseObject
+     */
     // function used to read server response messages
     private ResponseObject readResponse() {
 
@@ -224,6 +235,10 @@ public class ClientShell implements WinsomeInterface {
     }
 
 
+    
+    /** 
+     * @param request
+     */
     // function used to send requests to the server
     private void sendRequest(RequestObject request) {
         // making a JSON string out of the request
@@ -240,12 +255,27 @@ public class ClientShell implements WinsomeInterface {
     }
 
 
+    
+    /** 
+     * @param username
+     * @param password
+     * @param tags
+     * @return ResponseObject
+     * @throws RemoteException
+     */
     public ResponseObject register(String username, String password, String[] tags) throws RemoteException {
         if(this.isLogged) return new ResponseObject(Result.ERROR, "You are already logged in.", null, null, null);
         ConcurrentLinkedQueue<String> tagsList = new ConcurrentLinkedQueue<>(Arrays.asList(tags));
         return this.rmiRegistration.register(username, password, tagsList);
     }
 
+    
+    /** 
+     * @param username
+     * @param password
+     * @return ResponseObject
+     * @throws RemoteException
+     */
     public ResponseObject login(String username, String password) throws RemoteException {
         String command = "login";
         RequestObject request = new RequestObject(this.authToken, command, username, password, null, null, null);
@@ -270,6 +300,11 @@ public class ClientShell implements WinsomeInterface {
         return response;
     }
 
+    
+    /** 
+     * @return ResponseObject
+     * @throws RemoteException
+     */
     public ResponseObject logout() throws RemoteException {
 
         String command = "logout";
@@ -288,6 +323,10 @@ public class ClientShell implements WinsomeInterface {
         return response;
     }
 
+    
+    /** 
+     * @return ResponseObject
+     */
     public ResponseObject listUsers() {
 
         String command = "list users";
@@ -297,6 +336,10 @@ public class ClientShell implements WinsomeInterface {
         return readResponse();
     }
 
+    
+    /** 
+     * @return ResponseObject
+     */
     public ResponseObject listFollowers() {
         if(!(this.isLogged)) return new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
 
@@ -305,6 +348,10 @@ public class ClientShell implements WinsomeInterface {
         return new ResponseObject(ResponseObject.Result.SUCCESS, result, null, null, null);
     }
 
+    
+    /** 
+     * @return ResponseObject
+     */
     public ResponseObject listFollowing() {
 
         String command ="list following";
@@ -314,6 +361,11 @@ public class ClientShell implements WinsomeInterface {
         return readResponse();
     }
 
+    
+    /** 
+     * @param userId
+     * @return ResponseObject
+     */
     public ResponseObject followUser(String userId) {
 
         String command = "follow";
@@ -323,6 +375,11 @@ public class ClientShell implements WinsomeInterface {
         return readResponse();
     }
 
+    
+    /** 
+     * @param userId
+     * @return ResponseObject
+     */
     public ResponseObject unfollowUser(String userId) {
 
         String command = "unfollow";
@@ -332,6 +389,10 @@ public class ClientShell implements WinsomeInterface {
         return readResponse();
     }
 
+    
+    /** 
+     * @return ResponseObject
+     */
     public ResponseObject viewBlog() {
 
         String command = "blog";
@@ -341,6 +402,12 @@ public class ClientShell implements WinsomeInterface {
         return readResponse();
     }
 
+    
+    /** 
+     * @param title
+     * @param content
+     * @return ResponseObject
+     */
     public ResponseObject createPost(String title, String content) {
 
         String command = "post";
@@ -350,6 +417,10 @@ public class ClientShell implements WinsomeInterface {
         return readResponse();
     }
 
+    
+    /** 
+     * @return ResponseObject
+     */
     public ResponseObject showFeed() {
 
         String command = "show feed";
@@ -359,6 +430,11 @@ public class ClientShell implements WinsomeInterface {
         return readResponse();
     }
 
+    
+    /** 
+     * @param postId
+     * @return ResponseObject
+     */
     public ResponseObject showPost(String postId) {
 
         String command = "show post";
@@ -370,6 +446,11 @@ public class ClientShell implements WinsomeInterface {
         return readResponse();
     }
 
+    
+    /** 
+     * @param postId
+     * @return ResponseObject
+     */
     public ResponseObject deletePost(String postId) {
 
         String command = "delete";
@@ -381,6 +462,11 @@ public class ClientShell implements WinsomeInterface {
         return readResponse();
     }
 
+    
+    /** 
+     * @param postId
+     * @return ResponseObject
+     */
     public ResponseObject rewinPost(String postId) {
 
         String command = "rewin";
@@ -392,6 +478,12 @@ public class ClientShell implements WinsomeInterface {
         return readResponse();
     }
 
+    
+    /** 
+     * @param postId
+     * @param vote
+     * @return ResponseObject
+     */
     public ResponseObject ratePost(String postId, String vote) {
 
         String command = "rate";
@@ -403,6 +495,12 @@ public class ClientShell implements WinsomeInterface {
         return readResponse();
     }
 
+    
+    /** 
+     * @param postId
+     * @param comment
+     * @return ResponseObject
+     */
     public ResponseObject addComment(String postId, String comment) {
 
         String command = "comment";
@@ -414,6 +512,10 @@ public class ClientShell implements WinsomeInterface {
         return readResponse();
     }
 
+    
+    /** 
+     * @return ResponseObject
+     */
     public ResponseObject getWallet() {
 
         String command = "wallet";
@@ -423,6 +525,10 @@ public class ClientShell implements WinsomeInterface {
         return readResponse();
     }
 
+    
+    /** 
+     * @return ResponseObject
+     */
     public ResponseObject getWalletInBitcoin() {
 
         String command = "wallet btc";

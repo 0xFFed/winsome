@@ -45,26 +45,50 @@ public class ResponseObject implements Serializable {
         this.secondStringArray = secondStringArray;
     }
 
+    
+    /** 
+     * @return boolean
+     */
     public boolean isSuccess() {
         return this.success;
     }
 
+    
+    /** 
+     * @return String
+     */
     public String getOutput() {
         return this.message;
     }
 
+    
+    /** 
+     * @return String
+     */
     public String getStringData() {
         return this.stringData;
     }
 
+    
+    /** 
+     * @return ArrayList<String>
+     */
     public ArrayList<String> getStringArray() {
         return this.stringArray;
     }
 
+    
+    /** 
+     * @return ArrayList<String>
+     */
     public ArrayList<String> getSecondStringArray() {
         return this.secondStringArray;
     }
 
+    
+    /** 
+     * @return String
+     */
     @Override
     public String toString() {
         return "ResultObject [success="+this.success+", message="+this.message+"]";

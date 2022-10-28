@@ -72,6 +72,7 @@ public class PostStorage extends Storage<Post> {
     }
 
 
+    // used to initially load data from local storage
     private void loadData() {
         Gson gson = new GsonBuilder().serializeNulls().create();
         
@@ -90,9 +91,8 @@ public class PostStorage extends Storage<Post> {
     }
 
 
-    // setter
+    // used to update and write to local storage the counter values
     private synchronized void updateCounterFile() {
-        
 
         Gson gson = new GsonBuilder().serializeNulls().create();
         try(FileWriter writer = new FileWriter(this.counterFilePath)) {
@@ -108,12 +108,23 @@ public class PostStorage extends Storage<Post> {
     }
 
 
+    
+    /** 
+     * @return ArrayList<Post>
+     */
     // getter
     public ArrayList<Post> getPostSet() {
         return new ArrayList<>(this.data.values());
     }
 
 
+    
+    /** 
+     * @param key
+     * @param elem
+     * @return boolean
+     * @throws NullPointerException
+     */
     @Override
     public boolean add(String key, Post elem) throws NullPointerException {
         boolean result = super.add(key, elem);

@@ -13,12 +13,19 @@ public class RewardTransaction extends Transaction {
     }
 
 
-    // getter
+    
+    /** 
+     * @return int
+     */
     public int getPostRewardedId() {
         return this.postRewardedId;
     }
 
 
+    
+    /** 
+     * @return String
+     */
     @Override
     public String toString() {
         return "[Value: "+this.getValue()+", PostID: "+this.postRewardedId+", Time: "+this.getTime()+']';

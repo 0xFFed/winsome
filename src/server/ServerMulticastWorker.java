@@ -62,14 +62,17 @@ public class ServerMulticastWorker implements Runnable {
     }
 
 
+    // thread main function
     public void run() {
         try {
             while(!(Thread.currentThread().isInterrupted())) {
                 Thread.sleep(sleepTimer);
-    
+
+                // getting all posts to iterate through them
                 ArrayList<Post> allPosts = this.serverStorage.getPostStorage().getPostSet();
                 Iterator<Post> postIter = allPosts.iterator();
-    
+
+                // calculating rewards for each post
                 while(postIter.hasNext()) {
                     Post currPost = postIter.next();
                     calculateReward(currPost);
@@ -89,7 +92,13 @@ public class ServerMulticastWorker implements Runnable {
     }
 
 
-    private void calculateReward(Post post) {
+    
+    /** 
+     * @param post
+     * @throws NullPointerException
+     */
+    private void calculateReward(Post post) throws NullPointerException {
+        Objects.requireNonNull(post);
 
         // calculating contribution from likes/dislikes
         HashSet<String> newLikers = post.getNewLikers();
@@ -146,6 +155,7 @@ public class ServerMulticastWorker implements Runnable {
     }
 
 
+    // method used to send notifications of calculated rewards event to the multicast group
     public void sendRewardSummary() {
         byte[] outputbytes = ("Rewards calculated! Check your wallets!").getBytes();
 

@@ -9,7 +9,6 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.nio.ByteBuffer;
 import java.net.InetAddress;
-import java.nio.channels.Pipe;
 import java.net.InetSocketAddress;
 import java.net.StandardSocketOptions;
 import java.nio.channels.Selector;
@@ -67,10 +66,6 @@ public class ServerMain implements Runnable {
 	// used for selection
 	private ServerSocketChannel managerChannel;
     private Selector selector;
-
-    // used for switching channel mode between OP_READ and OP_WRITE
-    private Pipe registrationPipe;
-    private Queue<WritingTask> registrationQueue;
 	
 	// buffer to be used in NIO data exchanges
 	private static final int BUF_DIM = 8192;
@@ -103,15 +98,17 @@ public class ServerMain implements Runnable {
         this.serverStorage = new ServerStorage(
             new UserStorage(config.getStoragePath(), config.getUserStoragePath()),
             new PostStorage(config.getStoragePath(), config.getPostStoragePath()));
-        this.registrationQueue = new ConcurrentLinkedQueue<>();
         this.taskQueue = new LinkedBlockingQueue<>();
         this.connectedUsers = new ConcurrentHashMap<>();
         this.loggedUsers = new ConcurrentHashMap<>();
-        this.registrationPipe = Pipe.open();
         this.callbackHandle = this.startCallback();
     }
 
 
+    
+    /** 
+     * @throws IOException
+     */
     // Selector and Accepting Socket setup
     private void startServer() throws IOException {
 
@@ -129,10 +126,6 @@ public class ServerMain implements Runnable {
         // setting up the manager socket as an "accepting socket"
         this.managerChannel.register(this.selector, SelectionKey.OP_ACCEPT);
 
-        // setting up the registration pipe's read-end
-        this.registrationPipe.source().configureBlocking(false);
-        this.registrationPipe.source().register(this.selector, SelectionKey.OP_READ);
-
         // starting the worker threadpool
         this.workerPool = Executors.newFixedThreadPool(CPUS*CPU_MULT);
         for(int i=0; i<(CPUS*CPU_MULT); i++) {
@@ -140,24 +133,40 @@ public class ServerMain implements Runnable {
                 new ServerWorker(
                     this.serverStorage,
                     this.callbackHandle,
-                    this.registrationPipe.sink(),
                     this.taskQueue,
-                    this.registrationQueue,
                     this.connectedUsers,
                     this.loggedUsers)
             );
         }
         
         // starting the reward worker thread
-        new Thread(new ServerMulticastWorker(this.serverStorage)).start();
+        Thread rewardWorker = new Thread(new ServerMulticastWorker(this.serverStorage));
+        rewardWorker.start();
 
         // printing connection information
         System.out.println("Server listening on "+config.getAddr()+':'+config.getPort());
+
+        // adding a cleanup-handler
+        Thread cleanupThreads = new Thread(() -> {
+            this.workerPool.shutdown();
+            rewardWorker.interrupt();
+        });
+
+        // registering the cleanup-handler
+        Runtime.getRuntime().addShutdownHook(cleanupThreads);
     }
 
 
+    
+    /** 
+     * @param key
+     * @throws IOException
+     * @throws NullPointerException
+     */
     // method that handles the acceptance of incoming connections on a key
-    private void acceptConnection(SelectionKey key) throws IOException {
+    private void acceptConnection(SelectionKey key) throws IOException, NullPointerException {
+        Objects.requireNonNull(key);
+
         // getting the acceptance socket
         ServerSocketChannel serverSockChannel = (ServerSocketChannel)key.channel();
 
@@ -173,24 +182,15 @@ public class ServerMain implements Runnable {
     }
 
 
-    // method used to switch the mode (read/write) of a socket channel
-    private void switchChannelMode() {
-        // get the head of the queue
-        WritingTask writingTask = registrationQueue.poll();
-        if(writingTask == null) return;
-
-        // getting the <channel, mode, message> triple
-        SelectionKey key = writingTask.key;
-        boolean isWriteMode = writingTask.isWriteMode;
-
-        // registering the channel for the right operation
-        if(isWriteMode) key.interestOps(SelectionKey.OP_WRITE);
-        else key.interestOps(SelectionKey.OP_READ);
-    }
-
-
+    
+    /** 
+     * @param key
+     * @throws IOException
+     * @throws NullPointerException
+     */
     // method that handles reading the clients' requests
-    private void readRequest(SelectionKey key) throws IOException {
+    private void readRequest(SelectionKey key) throws IOException, NullPointerException {
+        Objects.requireNonNull(key);
 
         // getting the relevant channel from the active socket
         SocketChannel sockChannel = (SocketChannel)key.channel();
@@ -242,6 +242,11 @@ public class ServerMain implements Runnable {
     }
 
 
+    
+    /** 
+     * @return ServerCallback
+     * @throws RemoteException
+     */
     // sets up the RMI callback service for follow/unfollow operations
     public ServerCallback startCallback() throws RemoteException {
         ServerCallback rmiHandle = new ServerCallback();
@@ -270,6 +275,10 @@ public class ServerMain implements Runnable {
     }
 
 
+    
+    /** 
+     * @throws RemoteException
+     */
     // sets up the RMI registration service
     public void startRegistrationService() throws RemoteException {
         // generating and exposing the remote object
@@ -302,9 +311,12 @@ public class ServerMain implements Runnable {
     }
 
 
+    
+    /** 
+     * @param channel
+     */
     // removes all references to the disconnected user
     private void disconnectUser(SocketChannel channel) {
-
         if((Objects.nonNull(channel)) && (Objects.nonNull(this.connectedUsers.get(channel.socket().toString())))) {
             this.loggedUsers.remove(this.connectedUsers.remove(channel.socket().toString()));
         }
@@ -343,8 +355,7 @@ public class ServerMain implements Runnable {
                     // if a connection attempt was made, accept it
                     if(selKey.isAcceptable()) this.acceptConnection(selKey);
                     else if(selKey.isReadable()) {
-                        if(selKey.channel() == registrationPipe.source()) this.switchChannelMode();
-                        else this.readRequest(selKey);
+                        this.readRequest(selKey);
                     }
                 }
             } catch(IOException e) {
@@ -356,7 +367,11 @@ public class ServerMain implements Runnable {
     }
 	
 
-	public static void main(String[] args) {
+	
+    /** 
+     * @param args
+     */
+    public static void main(String[] args) {
         try {
             new Thread(new ServerMain()).start();   // starting server's main thread
         } catch(IOException e) {

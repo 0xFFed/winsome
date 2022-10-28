@@ -49,36 +49,64 @@ public class Post implements Serializable {
     }
 
 
+    
+    /** 
+     * @return int
+     */
     // getter
     public int getPostId() {
         return this.postId;
     }
 
+    
+    /** 
+     * @return String
+     */
     // getter
     public String getTitle() {
         return this.title;
     }
 
+    
+    /** 
+     * @return String
+     */
     // getter
     public String getContent() {
         return this.content;
     }
 
+    
+    /** 
+     * @return String
+     */
     // getter
     public String getAuthor() {
         return this.author;
     }
 
+    
+    /** 
+     * @return String
+     */
     // getter
     public String getOriginalAuthor() {
         return this.originalAuthor;
     }
 
+    
+    /** 
+     * @return boolean
+     */
     // getter
     public boolean isRewin() {
         return this.rewin;
     }
 
+    
+    /** 
+     * @return ArrayList<String>
+     */
     // getter
     public ArrayList<String> getLikes() {
         
@@ -88,6 +116,10 @@ public class Post implements Serializable {
         return likesArray;
     }
 
+    
+    /** 
+     * @return ArrayList<String>
+     */
     // getter
     public ArrayList<String> getDislikes() {
         
@@ -97,6 +129,10 @@ public class Post implements Serializable {
         return dislikesArray;
     }
 
+    
+    /** 
+     * @return ArrayList<Comment>
+     */
     // getter
     public ArrayList<Comment> getComments() {
 
@@ -106,6 +142,10 @@ public class Post implements Serializable {
         return commentsArray;
     }
 
+    
+    /** 
+     * @return HashSet<String>
+     */
     // getter
     public HashSet<String> getNewLikers() {
 
@@ -117,7 +157,10 @@ public class Post implements Serializable {
         return newLikers;
     }
 
-    // getter
+    
+    /** 
+     * @return HashSet<String>
+     */
     public HashSet<String> getNewDislikers() {
 
         HashSet<String> newDislikers = new HashSet<>();
@@ -128,7 +171,10 @@ public class Post implements Serializable {
         return newDislikers;
     }
 
-    // getter
+    
+    /** 
+     * @return HashSet<String>
+     */
     public HashSet<String> getNewCommenters() {
 
         HashSet<String> newCommenters = new HashSet<>();
@@ -139,8 +185,14 @@ public class Post implements Serializable {
         return newCommenters;
     }
 
-    // getter
-    public Set<Comment> getCommentsOfUser(String username) {
+    
+    /** 
+     * @param username
+     * @return Set<Comment>
+     * @throws NullPointerException
+     */
+    public Set<Comment> getCommentsOfUser(String username) throws NullPointerException {
+        Objects.requireNonNull(username);
 
         Set<Comment> userComments = new HashSet<>();
         this.comments.forEach((comment, status) -> {
@@ -150,26 +202,44 @@ public class Post implements Serializable {
         return userComments;
     }
 
-    // getter
+    
+    /** 
+     * @return int
+     */
     public int getTimesRewarded() {
         return this.timesRewarded;
     }
 
-    // getter
+    
+    /** 
+     * @return int
+     */
     public static int incrementCounter() {
         return counter.incrementAndGet();
     }
 
-    // setter
+    
+    /** 
+     * @param value
+     */
     public static void setCounter(int value) {
         counter.set(value);
     }
 
 
+    
+    
     // ########## UTILITY FUNCTIONS ##########
 
+    /** 
+     * @param user
+     * @return boolean
+     * @throws NullPointerException
+     */
     // adds a like from the user
-    public boolean like(User user) {
+    public boolean like(User user) throws NullPointerException {
+        Objects.requireNonNull(user);
+
         if(this.likes.containsKey(user.getUsername()) || this.dislikes.contains(user.getUsername())) {
             return false;
         }
@@ -179,8 +249,16 @@ public class Post implements Serializable {
         }
     }
 
+    
+    /** 
+     * @param user
+     * @return boolean
+     * @throws NullPointerException
+     */
     // adds a dislike from the user
-    public boolean dislike(User user) {
+    public boolean dislike(User user) throws NullPointerException {
+        Objects.requireNonNull(user);
+
         if(this.likes.containsKey(user.getUsername()) || this.dislikes.contains(user.getUsername())) {
             return false;
         }
@@ -190,8 +268,15 @@ public class Post implements Serializable {
         }
     }
 
+    
+    /** 
+     * @param comment
+     * @throws NullPointerException
+     */
     // adds a comment from the user
-    public void addComment(Comment comment) {
+    public void addComment(Comment comment) throws NullPointerException {
+        Objects.requireNonNull(comment);
+        
         this.comments.putIfAbsent(comment, PostStatus.NEW.name());
     }
 

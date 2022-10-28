@@ -25,7 +25,19 @@ public class RemoteRegistration implements RemoteRegistrationInterface {
         this.serverStorage = Objects.requireNonNull(serverStorage, "Server storage cannot be null");
     }
     
-    public ResponseObject register(String username, String password, ConcurrentLinkedQueue<String> tags) throws RemoteException {
+    
+    /** 
+     * @param username
+     * @param password
+     * @param tags
+     * @return ResponseObject
+     * @throws RemoteException
+     * @throws NullPointerException
+     */
+    public ResponseObject register(String username, String password, ConcurrentLinkedQueue<String> tags) throws RemoteException, NullPointerException {
+        Objects.requireNonNull(username);
+        Objects.requireNonNull(password);
+
         boolean success = false;
 
         try {

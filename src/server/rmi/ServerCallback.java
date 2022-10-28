@@ -21,20 +21,43 @@ public class ServerCallback extends RemoteObject implements ServerCallbackInterf
         // no-op
     }
 
+    
+    /** 
+     * @param token
+     * @param clientInterface
+     * @throws RemoteException
+     */
     public synchronized void registerForCallback(String token, ClientCallbackInterface clientInterface) throws RemoteException {
         this.users.put(token, clientInterface);
     }
 
+    
+    /** 
+     * @param token
+     * @throws RemoteException
+     */
     public synchronized void unregisterForCallback(String token) throws RemoteException {
         this.users.remove(token);
     }
 
+    
+    /** 
+     * @param token
+     * @param follower
+     * @throws RemoteException
+     */
     public void notifyFollow(String token, String follower) throws RemoteException {
         if(Objects.isNull(token) || Objects.isNull(follower)) return;
         ClientCallbackInterface clientInterface = this.users.get(token);
         if(Objects.nonNull(clientInterface)) clientInterface.notifyFollow(follower);
     }
 
+    
+    /** 
+     * @param token
+     * @param unfollower
+     * @throws RemoteException
+     */
     public void notifyUnfollow(String token, String unfollower) throws RemoteException {
         if(Objects.isNull(token) || Objects.isNull(unfollower)) return;
         ClientCallbackInterface clientInterface = this.users.get(token);

@@ -28,30 +28,56 @@ public class RequestObject {
         if(Objects.isNull(data)) this.data = new ArrayList<>(); else this.data = data;
     }
 
+    
+    
+    /** 
+     * @return String
+     */
     public String getToken() {
         return this.token;
     }
-
+    
+    /** 
+     * @return String
+     */
     public String getCommand() {
         return this.command;
     }
-
+    
+    /** 
+     * @return String
+     */
     public String getUsername() {
         return this.username;
     }
-
+    
+    /** 
+     * @return String
+     */
     public String getPassword() {
         return this.password;
     }
 
+    
+    /** 
+     * @return Post
+     */
     public Post getPost() {
         return this.post;
     }
 
+    
+    /** 
+     * @return Comment
+     */
     public Comment getComment() {
         return this.comment;
     }
 
+    
+    /** 
+     * @return ArrayList<String>
+     */
     public ArrayList<String> getData() {
         return this.data;
     }

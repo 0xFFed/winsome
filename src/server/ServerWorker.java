@@ -1,6 +1,5 @@
 package server;
 
-import java.nio.channels.Pipe;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -43,10 +42,6 @@ class ServerWorker implements Runnable {
 
     // ########## VARIABLES ##########
 
-    // pipe channel to communicate OP_WRITE requests
-    private Pipe.SinkChannel pipe;
-    private Queue<WritingTask> registrationQueue;
-
     // queue used to get tasks from the main thread
     private BlockingQueue<ServerTask> taskQueue;
 
@@ -72,17 +67,13 @@ class ServerWorker implements Runnable {
     // constructor
     public ServerWorker(ServerStorage serverStorage,
             ServerCallback callbackHandle,
-            Pipe.SinkChannel pipe,
             BlockingQueue<ServerTask> taskQueue,
-            Queue<WritingTask> registrationQueue,
             ConcurrentMap<String, String> connectedUsers,
             ConcurrentMap<String, User> loggedUsers) {
 
         this.serverStorage = Objects.requireNonNull(serverStorage, "Server storage cannot be null");
         this.callbackHandle = Objects.requireNonNull(callbackHandle, "callback object cannot be null");
-        this.pipe = Objects.requireNonNull(pipe, "Main-Worker pipe cannot be null");
         this.taskQueue = Objects.requireNonNull(taskQueue, "Task queue cannot be null");
-        this.registrationQueue = Objects.requireNonNull(registrationQueue, "Write-task queue cannot be null");
         this.connectedUsers = Objects.requireNonNull(connectedUsers, "Connected users map cannot be null");
         this.loggedUsers = Objects.requireNonNull(loggedUsers, "Logged users map cannot be null");
     }
@@ -172,7 +163,16 @@ class ServerWorker implements Runnable {
     }
 
 
-    public void sendResponse(ResponseObject response, SocketChannel sock) {
+    
+    /** 
+     * @param response
+     * @param sock
+     * @throws NullPointerException
+     */
+    public void sendResponse(ResponseObject response, SocketChannel sock) throws NullPointerException {
+        Objects.requireNonNull(response);
+        Objects.requireNonNull(sock);
+
         Gson gson = new GsonBuilder().serializeNulls().create();
         String jsonResponse = gson.toJson(response);
         
@@ -185,9 +185,18 @@ class ServerWorker implements Runnable {
     }
 
 
+    
+    /** 
+     * @param request
+     * @param sock
+     * @throws NullPointerException
+     */
     // ########## REQUEST EXECUTION METHODS ##########
 
-    private void login(RequestObject request, SocketChannel sock) {
+    private void login(RequestObject request, SocketChannel sock) throws NullPointerException {
+        Objects.requireNonNull(request);
+        Objects.requireNonNull(sock);
+
         User user = this.serverStorage.getUserStorage().get(request.getUsername());
         if(Objects.nonNull(user)) {
             String providedPassword = "";
@@ -239,7 +248,15 @@ class ServerWorker implements Runnable {
     }
 
 
-    private void logout(RequestObject request, SocketChannel sock) {
+    
+    /** 
+     * @param request
+     * @param sock
+     * @throws NullPointerException
+     */
+    private void logout(RequestObject request, SocketChannel sock) throws NullPointerException {
+        Objects.requireNonNull(request);
+        Objects.requireNonNull(sock);
 
         if(Objects.isNull(request.getToken()) || Objects.isNull(this.loggedUsers.get(request.getToken()))) {
             ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
@@ -266,7 +283,15 @@ class ServerWorker implements Runnable {
     }
 
     
-    private void listUsers(RequestObject request, SocketChannel sock) {
+    
+    /** 
+     * @param request
+     * @param sock
+     * @throws NullPointerException
+     */
+    private void listUsers(RequestObject request, SocketChannel sock) throws NullPointerException {
+        Objects.requireNonNull(request);
+        Objects.requireNonNull(sock);
 
         if(Objects.isNull(request.getToken()) || Objects.isNull(this.loggedUsers.get(request.getToken()))) {
             ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
@@ -303,7 +328,15 @@ class ServerWorker implements Runnable {
         sendResponse(response, sock);
     }
 
-    private void listFollowing(RequestObject request, SocketChannel sock) {
+    
+    /** 
+     * @param request
+     * @param sock
+     * @throws NullPointerException
+     */
+    private void listFollowing(RequestObject request, SocketChannel sock) throws NullPointerException {
+        Objects.requireNonNull(request);
+        Objects.requireNonNull(sock);
         
         if(Objects.isNull(request.getToken()) || Objects.isNull(this.loggedUsers.get(request.getToken()))) {
             ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
@@ -318,7 +351,15 @@ class ServerWorker implements Runnable {
     }
 
     
-    private void followUser(RequestObject request, SocketChannel sock) {
+    
+    /** 
+     * @param request
+     * @param sock
+     * @throws NullPointerException
+     */
+    private void followUser(RequestObject request, SocketChannel sock) throws NullPointerException {
+        Objects.requireNonNull(request);
+        Objects.requireNonNull(sock);
         
         if(Objects.isNull(request.getToken()) || Objects.isNull(this.loggedUsers.get(request.getToken()))) {
             ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
@@ -368,8 +409,15 @@ class ServerWorker implements Runnable {
 
     }
 
-
-    private void unfollowUser(RequestObject request, SocketChannel sock) {
+    
+    /** 
+     * @param request
+     * @param sock
+     * @throws NullPointerException
+     */
+    private void unfollowUser(RequestObject request, SocketChannel sock) throws NullPointerException {
+        Objects.requireNonNull(request);
+        Objects.requireNonNull(sock);
         
         if(Objects.isNull(request.getToken()) || Objects.isNull(this.loggedUsers.get(request.getToken()))) {
             ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
@@ -419,7 +467,15 @@ class ServerWorker implements Runnable {
     }
 
     
-    private void viewBlog(RequestObject request, SocketChannel sock) {
+    
+    /** 
+     * @param request
+     * @param sock
+     * @throws NullPointerException
+     */
+    private void viewBlog(RequestObject request, SocketChannel sock) throws NullPointerException {
+        Objects.requireNonNull(request);
+        Objects.requireNonNull(sock);
         
         if(Objects.isNull(request.getToken()) || Objects.isNull(this.loggedUsers.get(request.getToken()))) {
             ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
@@ -445,7 +501,15 @@ class ServerWorker implements Runnable {
     }
 
     
-    private void createPost(RequestObject request, SocketChannel sock) {
+    
+    /** 
+     * @param request
+     * @param sock
+     * @throws NullPointerException
+     */
+    private void createPost(RequestObject request, SocketChannel sock) throws NullPointerException {
+        Objects.requireNonNull(request);
+        Objects.requireNonNull(sock);
         
         if(Objects.isNull(request.getToken()) || Objects.isNull(this.loggedUsers.get(request.getToken()))) {
             ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
@@ -469,7 +533,15 @@ class ServerWorker implements Runnable {
     }
 
     
-    private void showFeed(RequestObject request, SocketChannel sock) {
+    
+    /** 
+     * @param request
+     * @param sock
+     * @throws NullPointerException
+     */
+    private void showFeed(RequestObject request, SocketChannel sock) throws NullPointerException {
+        Objects.requireNonNull(request);
+        Objects.requireNonNull(sock);
         
         if(Objects.isNull(request.getToken()) || Objects.isNull(this.loggedUsers.get(request.getToken()))) {
             ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
@@ -496,7 +568,15 @@ class ServerWorker implements Runnable {
     }
 
     
-    private void showPost(RequestObject request, SocketChannel sock) {
+    
+    /** 
+     * @param request
+     * @param sock
+     * @throws NullPointerException
+     */
+    private void showPost(RequestObject request, SocketChannel sock) throws NullPointerException {
+        Objects.requireNonNull(request);
+        Objects.requireNonNull(sock);
         
         if(Objects.isNull(request.getToken()) || Objects.isNull(this.loggedUsers.get(request.getToken()))) {
             ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
@@ -532,7 +612,15 @@ class ServerWorker implements Runnable {
     }
 
     
-    private void deletePost(RequestObject request, SocketChannel sock) {
+    
+    /** 
+     * @param request
+     * @param sock
+     * @throws NullPointerException
+     */
+    private void deletePost(RequestObject request, SocketChannel sock) throws NullPointerException {
+        Objects.requireNonNull(request);
+        Objects.requireNonNull(sock);
         
         if(Objects.isNull(request.getToken()) || Objects.isNull(this.loggedUsers.get(request.getToken()))) {
             ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
@@ -562,7 +650,15 @@ class ServerWorker implements Runnable {
     }
 
     
-    private void rewinPost(RequestObject request, SocketChannel sock) {
+    
+    /** 
+     * @param request
+     * @param sock
+     * @throws NullPointerException
+     */
+    private void rewinPost(RequestObject request, SocketChannel sock) throws NullPointerException {
+        Objects.requireNonNull(request);
+        Objects.requireNonNull(sock);
         
         if(Objects.isNull(request.getToken()) || Objects.isNull(this.loggedUsers.get(request.getToken()))) {
             ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
@@ -613,7 +709,15 @@ class ServerWorker implements Runnable {
     }
 
     
-    private void ratePost(RequestObject request, SocketChannel sock) {
+    
+    /** 
+     * @param request
+     * @param sock
+     * @throws NullPointerException
+     */
+    private void ratePost(RequestObject request, SocketChannel sock) throws NullPointerException {
+        Objects.requireNonNull(request);
+        Objects.requireNonNull(sock);
         
         if(Objects.isNull(request.getToken()) || Objects.isNull(this.loggedUsers.get(request.getToken()))) {
             ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
@@ -680,7 +784,15 @@ class ServerWorker implements Runnable {
     }
 
     
-    private void addComment(RequestObject request, SocketChannel sock) {
+    
+    /** 
+     * @param request
+     * @param sock
+     * @throws NullPointerException
+     */
+    private void addComment(RequestObject request, SocketChannel sock) throws NullPointerException {
+        Objects.requireNonNull(request);
+        Objects.requireNonNull(sock);
         
         if(Objects.isNull(request.getToken()) || Objects.isNull(this.loggedUsers.get(request.getToken()))) {
             ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
@@ -706,7 +818,15 @@ class ServerWorker implements Runnable {
     }
 
     
-    private void getWallet(RequestObject request, SocketChannel sock) {
+    
+    /** 
+     * @param request
+     * @param sock
+     * @throws NullPointerException
+     */
+    private void getWallet(RequestObject request, SocketChannel sock) throws NullPointerException {
+        Objects.requireNonNull(request);
+        Objects.requireNonNull(sock);
 
         if(Objects.isNull(request.getToken()) || Objects.isNull(this.loggedUsers.get(request.getToken()))) {
             ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
@@ -735,7 +855,16 @@ class ServerWorker implements Runnable {
     }
 
     
-    private void getWalletInBitcoin(RequestObject request, SocketChannel sock) {
+    
+    /** 
+     * @param request
+     * @param sock
+     * @throws NullPointerException
+     */
+    private void getWalletInBitcoin(RequestObject request, SocketChannel sock) throws NullPointerException {
+        Objects.requireNonNull(request);
+        Objects.requireNonNull(sock);
+
         if(Objects.isNull(request.getToken()) || Objects.isNull(this.loggedUsers.get(request.getToken()))) {
             ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
             sendResponse(response, sock);
@@ -772,7 +901,13 @@ class ServerWorker implements Runnable {
     }
 
 
-    private void invalidCommand(SocketChannel sock) {
+    
+    /** 
+     * @param sock
+     * @throws NullPointerException
+     */
+    private void invalidCommand(SocketChannel sock) throws NullPointerException {
+        Objects.requireNonNull(sock);
 
         // writing the response to the client
         ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "Invalid command", null, null, null);
