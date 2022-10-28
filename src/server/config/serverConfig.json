@@ -5,9 +5,9 @@
     "postStoragePath": "posts.json",
     "userCounterPath": "user_counter.json",
     "postCounterPath": "post_counter.json",
-    "multicastAddress": "222.222.222.222",
+    "multicastAddress": "224.222.222.222",
     "multicastPort": 3003,
     "multicastTimer": 60000,
-    "coreMultiplier": 10,
+    "threadsPerCore": 10,
     "authorPercentage": 0.4
 }

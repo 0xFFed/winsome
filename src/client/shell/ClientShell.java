@@ -1,6 +1,8 @@
 package client.shell;
 
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.net.Authenticator.RequestorType;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
@@ -20,6 +22,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.stream.JsonReader;
 
+import client.ClientMulticastWorker;
 import common.Comment;
 import common.Post;
 import common.User;
@@ -55,6 +58,9 @@ public class ClientShell implements WinsomeInterface {
 	private static final int BUF_DIM = 8192;
 	private ByteBuffer readBuffer = ByteBuffer.allocate(BUF_DIM);
 
+    // handle for the multicast worker thread
+    private Thread mcWorkerThread;
+
 
     // max number of arguments for the register call
     private static final int MAX_REG_ARGS = 5;
@@ -79,7 +85,6 @@ public class ClientShell implements WinsomeInterface {
     // function used to parse given commands
     public ResponseObject parseCommand(String command, String[] args) throws RemoteException {
         Objects.requireNonNull(command, "command cannot be null");
-        System.out.println("DEBUG: "+command);
 
         switch (command) {
             case "register":
@@ -166,13 +171,10 @@ public class ClientShell implements WinsomeInterface {
                 return addComment(args[0], commentText);
 
             case "wallet":
-                System.out.println("DEBUG: "+Objects.isNull(args));
                 if(args == null || args.length < 1) {
-                    System.out.println("DEBUG: getting wallet");
                     return this.getWallet();
                 }
                 else {
-                    System.out.println("DEBUG: getting wallet btc "+args[0]);
                     if(args.length > 1) return new ResponseObject(ResponseObject.Result.ERROR, TOO_MANY, null, null, null);
                     if(args[0].equals("btc")) return this.getWalletInBitcoin();
                     else return new ResponseObject(ResponseObject.Result.ERROR, INVALID, null, null, null);
@@ -211,7 +213,6 @@ public class ClientShell implements WinsomeInterface {
 
         // extracting the JSON string representing the response from the server
         String jsonResponse = new String(data, StandardCharsets.UTF_8);
-        System.out.println("DEBUG: "+jsonResponse);    // TODO REMOVE
 
         // extracting a RequestObject from the JSON string and putting it in the task
         Gson gson = new GsonBuilder().serializeNulls().create();
@@ -228,7 +229,6 @@ public class ClientShell implements WinsomeInterface {
         // making a JSON string out of the request
         Gson gson = new GsonBuilder().serializeNulls().create();
         String json = gson.toJson(request);
-        System.out.println("DEBUG: "+json);
 
         try {
             // sending the request through the socket
@@ -257,6 +257,14 @@ public class ClientShell implements WinsomeInterface {
             this.isLogged = true;
             this.authToken = response.getStringData();
             this.callbackHandle.registerForCallback(this.authToken, this.callbackStub);
+            try {
+                this.mcWorkerThread = new Thread(new ClientMulticastWorker(InetAddress.getByName(response.getSecondStringArray().get(0)),
+                    Integer.parseInt(response.getSecondStringArray().get(1))));
+                this.mcWorkerThread.start();
+            } catch(UnknownHostException e) {
+                System.err.println("Fatal failure: multicast address is invalid");
+                System.exit(1);
+            }
         }
 
         return response;
@@ -272,6 +280,7 @@ public class ClientShell implements WinsomeInterface {
         if(response.isSuccess()) {
             this.followers.removeAll(followers);
             this.callbackHandle.unregisterForCallback(this.authToken);
+            if(Objects.nonNull(this.mcWorkerThread)) this.mcWorkerThread.interrupt();
             this.isLogged = false;
             this.authToken = null;
         }
@@ -397,8 +406,6 @@ public class ClientShell implements WinsomeInterface {
     public ResponseObject addComment(String postId, String comment) {
 
         String command = "comment";
-        System.out.println("DEBUG: "+postId);
-        System.out.println("DEBUG: "+comment);
         ArrayList<String> data = new ArrayList<>();
         data.add(postId);
         RequestObject request = new RequestObject(this.authToken, command, null, null, null, new Comment(null, comment), data);

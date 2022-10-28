@@ -23,12 +23,10 @@ public class ServerCallback extends RemoteObject implements ServerCallbackInterf
 
     public synchronized void registerForCallback(String token, ClientCallbackInterface clientInterface) throws RemoteException {
         this.users.put(token, clientInterface);
-        System.out.println("DEBUG: User "+token+" just registered");
     }
 
     public synchronized void unregisterForCallback(String token) throws RemoteException {
         this.users.remove(token);
-        System.out.println("DEBUG: User "+token+" just unregistered");
     }
 
     public void notifyFollow(String token, String follower) throws RemoteException {

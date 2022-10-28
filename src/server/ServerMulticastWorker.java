@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
+import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -34,7 +35,7 @@ public class ServerMulticastWorker implements Runnable {
     private ServerStorage serverStorage;
 
     // macro for 1 satoshi's value
-    private final double SATOSHI_UNIT = 0.00000001;
+    private static final double SATOSHI_UNIT = 0.00000001;
 
     
     public ServerMulticastWorker(ServerStorage serverStorage) {
@@ -42,24 +43,28 @@ public class ServerMulticastWorker implements Runnable {
 
         ServerConfig config = ServerConfig.getServerConfig();
 
-        this.mcAddress = config.getMulticastAddress();
+        try {
+            this.mcAddress = InetAddress.getByName(config.getMulticastAddress());
+        } catch(UnknownHostException e) {
+            System.err.println("Fatal failure: invalid multicast address");
+        }
+
         this.mcPort = config.getMulticastPort();
         this.sleepTimer = config.getMulticastTimer();
         this.authorPercentage = config.getAuthorPercentage();
 
         try {
-            this.mcSocket = new MulticastSocket(this.mcPort);
+            this.mcSocket = new MulticastSocket();
         } catch(IOException e) {
             System.err.println("Fatal error: could not start multicast socket");
             System.exit(1);
         }
-        // this.mcSocket.joinGroup(this.mcAddress, null);
     }
 
 
     public void run() {
         try {
-            while(!(ServerMain.isStopping.get())) {
+            while(!(Thread.currentThread().isInterrupted())) {
                 Thread.sleep(sleepTimer);
     
                 ArrayList<Post> allPosts = this.serverStorage.getPostStorage().getPostSet();
@@ -142,7 +147,7 @@ public class ServerMulticastWorker implements Runnable {
 
 
     public void sendRewardSummary() {
-        byte[] outputbytes = ("Rewards calculate! Check your wallets!").getBytes();
+        byte[] outputbytes = ("Rewards calculated! Check your wallets!").getBytes();
 
         DatagramPacket outputMessage = new DatagramPacket(outputbytes, outputbytes.length, this.mcAddress, this.mcPort);
         try {

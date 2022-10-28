@@ -38,7 +38,7 @@ public class ServerConfig extends Config {
     private String postCounterPath;
 
     // address used in multicast communications
-    private InetAddress multicastAddress;
+    private String multicastAddress;
 
     // port used in multicast communications
     private int multicastPort;
@@ -47,7 +47,7 @@ public class ServerConfig extends Config {
     private int multicastTimer;
 
     // number of threads per core
-    private int coreMultiplier;
+    private int threadsPerCore;
 
     // percentage of the reward given to the author
     private double authorPercentage;
@@ -119,7 +119,7 @@ public class ServerConfig extends Config {
     }
 
     // getter
-    public InetAddress getMulticastAddress() {
+    public String getMulticastAddress() {
         return this.multicastAddress;
     }
 
@@ -135,7 +135,7 @@ public class ServerConfig extends Config {
 
     // getter
     public int getCoreMult() {
-        return this.coreMultiplier;
+        return this.threadsPerCore;
     }
 
     // getter

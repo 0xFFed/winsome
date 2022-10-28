@@ -33,6 +33,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutorService;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -57,7 +58,8 @@ public class ServerMain implements Runnable {
 
     // worker threads threadpool and parameters
     private static final int CPUS = Runtime.getRuntime().availableProcessors();
-    private ThreadPoolExecutor workerPool;
+    private static final int CPU_MULT = 2;
+    private ExecutorService workerPool;
 
     // rmi callback handle
     protected ServerCallback callbackHandle;
@@ -73,9 +75,6 @@ public class ServerMain implements Runnable {
 	// buffer to be used in NIO data exchanges
 	private static final int BUF_DIM = 8192;
 	private ByteBuffer readBuffer = ByteBuffer.allocate(BUF_DIM);
-
-    // main-loop determinant
-    public static AtomicBoolean isStopping = new AtomicBoolean();
 
 
     // ########## SERVICE DATA ##########
@@ -134,14 +133,20 @@ public class ServerMain implements Runnable {
         this.registrationPipe.source().configureBlocking(false);
         this.registrationPipe.source().register(this.selector, SelectionKey.OP_READ);
 
-        // starting the worker thread
-        new Thread(new ServerWorker(this.serverStorage,
-            this.callbackHandle,
-            this.registrationPipe.sink(),
-            this.taskQueue,
-            this.registrationQueue,
-            this.connectedUsers,
-            this.loggedUsers)).start();
+        // starting the worker threadpool
+        this.workerPool = Executors.newFixedThreadPool(CPUS*CPU_MULT);
+        for(int i=0; i<(CPUS*CPU_MULT); i++) {
+            this.workerPool.submit(
+                new ServerWorker(
+                    this.serverStorage,
+                    this.callbackHandle,
+                    this.registrationPipe.sink(),
+                    this.taskQueue,
+                    this.registrationQueue,
+                    this.connectedUsers,
+                    this.loggedUsers)
+            );
+        }
         
         // starting the reward worker thread
         new Thread(new ServerMulticastWorker(this.serverStorage)).start();
@@ -219,7 +224,6 @@ public class ServerMain implements Runnable {
 
         // extracting the JSON string representing the request from the buffer
         String jsonRequest = new String(data, StandardCharsets.UTF_8);
-        System.out.println("\nDEBUG: "+jsonRequest);    // TODO REMOVE
 
         // extracting a RequestObject from the JSON string and putting it in the task
         Gson gson = new GsonBuilder().serializeNulls().create();
@@ -320,7 +324,7 @@ public class ServerMain implements Runnable {
         }
 
         // server's main loop
-        while(!(isStopping.get())) {
+        while(!(Thread.currentThread().isInterrupted())) {
             try {
                 // waiting for the accepting channel to become readable
                 int timeLeft = this.selector.select(config.getTimeout());

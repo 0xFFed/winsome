@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Objects;
 import java.util.Queue;
 import java.util.Scanner;
@@ -18,6 +19,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetAddress;
 import java.net.URL;
 import java.net.URLConnection;
 
@@ -35,6 +37,7 @@ import server.rmi.ServerCallback;
 import server.storage.ServerStorage;
 import server.storage.Storage;
 import server.ServerMain;
+import server.config.ServerConfig;
 
 class ServerWorker implements Runnable {
 
@@ -88,7 +91,7 @@ class ServerWorker implements Runnable {
     // request dispatching
     public void run() {
         ServerTask task = null;
-        while(!(ServerMain.isStopping.get())) {
+        while(!(Thread.currentThread().isInterrupted())) {
             try {
                 task = this.taskQueue.take();
             } catch(InterruptedException e) {
@@ -216,7 +219,10 @@ class ServerWorker implements Runnable {
                 this.loggedUsers.putIfAbsent(token, user);
 
                 // writing the response to the client
-                ResponseObject response = new ResponseObject(ResponseObject.Result.SUCCESS, "Successfully logged in", token, user.getFollowers(), null);
+                ArrayList<String> mcData = new ArrayList<>();
+                mcData.add(ServerConfig.getServerConfig().getMulticastAddress());
+                mcData.add(Integer.toString(ServerConfig.getServerConfig().getMulticastPort()));
+                ResponseObject response = new ResponseObject(ResponseObject.Result.SUCCESS, "Successfully logged in", token, user.getFollowers(), mcData);
                 sendResponse(response, sock);
             }
             else {
@@ -710,14 +716,14 @@ class ServerWorker implements Runnable {
 
         User user = this.loggedUsers.get(request.getToken());
 
-        // getting balance and tx history (latest 50 txs) of the user
-        double balance = user.getBalance();
+        // getting balance (to satoshi precision) and tx history (latest 50 txs) of the user
+        double balance = Math.floor(user.getBalance()*100000000)/100000000;
         int count = 0;
         ArrayList<RewardTransaction> txHistory = user.getTransactionHistory();
         ArrayList<String> txHistoryText = new ArrayList<>();
-        Iterator<RewardTransaction> txIter = txHistory.iterator();
-        while(txIter.hasNext() && count < 50) {
-            RewardTransaction tx = txIter.next();
+        ListIterator<RewardTransaction> txIter = txHistory.listIterator(txHistory.size());
+        while(txIter.hasPrevious() && count < 50) {
+            RewardTransaction tx = txIter.previous();
             txHistoryText.add(tx.toString());
             count++;
         }
@@ -752,7 +758,8 @@ class ServerWorker implements Runnable {
             InputStream response = conn.getInputStream();
 
             try(Scanner scanner = new Scanner(response)) {
-                result = (Integer.parseInt(scanner.next())/(double)10000)*balance;
+                // balance to satoshi precision
+                result = Math.floor((Integer.parseInt(scanner.next())/(double)10000)*balance*100000000)/100000000;
             }
         } catch(Exception e) {
             e.printStackTrace();
