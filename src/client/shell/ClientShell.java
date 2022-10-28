@@ -166,8 +166,13 @@ public class ClientShell implements WinsomeInterface {
                 return addComment(args[0], commentText);
 
             case "wallet":
-                if(args == null || args.length == 0) return this.getWallet();
+                System.out.println("DEBUG: "+Objects.isNull(args));
+                if(args == null || args.length < 1) {
+                    System.out.println("DEBUG: getting wallet");
+                    return this.getWallet();
+                }
                 else {
+                    System.out.println("DEBUG: getting wallet btc "+args[0]);
                     if(args.length > 1) return new ResponseObject(ResponseObject.Result.ERROR, TOO_MANY, null, null, null);
                     if(args[0].equals("btc")) return this.getWalletInBitcoin();
                     else return new ResponseObject(ResponseObject.Result.ERROR, INVALID, null, null, null);
@@ -286,7 +291,7 @@ public class ClientShell implements WinsomeInterface {
     public ResponseObject listFollowers() {
         if(!(this.isLogged)) return new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
 
-        String result = String.join(", ", this.followers);
+        String result = "People following you: "+String.join(", ", this.followers);
 
         return new ResponseObject(ResponseObject.Result.SUCCESS, result, null, null, null);
     }

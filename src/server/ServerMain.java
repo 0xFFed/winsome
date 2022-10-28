@@ -142,6 +142,9 @@ public class ServerMain implements Runnable {
             this.registrationQueue,
             this.connectedUsers,
             this.loggedUsers)).start();
+        
+        // starting the reward worker thread
+        new Thread(new ServerMulticastWorker(this.serverStorage)).start();
 
         // printing connection information
         System.out.println("Server listening on "+config.getAddr()+':'+config.getPort());

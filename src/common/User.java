@@ -17,8 +17,8 @@ public class User {
     private ConcurrentLinkedQueue<String> tags = new ConcurrentLinkedQueue<>();
     private ConcurrentLinkedQueue<String> followers = new ConcurrentLinkedQueue<>();
     private ConcurrentLinkedQueue<String> followings = new ConcurrentLinkedQueue<>();
-    private ConcurrentLinkedQueue<Transaction> transactionHistory = new ConcurrentLinkedQueue<>();
-    private int balance;
+    private ConcurrentLinkedQueue<RewardTransaction> transactionHistory = new ConcurrentLinkedQueue<>();
+    private double balance;
 
 
     // ########## METHODS ##########
@@ -32,7 +32,7 @@ public class User {
         this.username = username;
         this.password = password;
         this.tags = tags;
-        this.balance = 0;
+        this.balance = 0.0;
     }
 
 
@@ -66,12 +66,12 @@ public class User {
     }
 
     // getter
-    public ArrayList<Transaction> getTransactionHistory() {
+    public ArrayList<RewardTransaction> getTransactionHistory() {
         return new ArrayList<>(this.transactionHistory);
     }
 
     // getter
-    public int getBalance() {
+    public double getBalance() {
         return this.balance;
     }
 
@@ -92,14 +92,33 @@ public class User {
     public boolean addFollower(User follower) {
         if(this.followers.contains(follower.getUsername())) return false;
         else {
-            follower.getFollowings().add(this.getUsername());
+            follower.addFollowing(this);
             return this.followers.add(follower.getUsername());
         }
     }
 
     // removes a follower from the user; returns true if it was already a follower
     public boolean removeFollower(User unfollower) {
-        unfollower.getFollowings().remove(this.getUsername());
+        unfollower.removeFollowing(this);
         return this.followers.remove(unfollower.getUsername());
+    }
+
+    // adds a following to the user
+    public void addFollowing(User following) {
+        this.followings.add(following.getUsername());
+    }
+
+    // removes a following from the user
+    public void removeFollowing(User following) {
+        this.followings.remove(following.getUsername());
+    }
+
+    // registers the funds in the user's wallet
+    public void sendTransaction(RewardTransaction tx) {
+        // ignoring null transactions
+        if(Objects.isNull(tx)) return;
+
+        this.balance += tx.getValue();
+        this.transactionHistory.add(tx);
     }
 }

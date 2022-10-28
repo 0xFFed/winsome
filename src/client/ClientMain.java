@@ -119,10 +119,10 @@ public class ClientMain implements Runnable {
         try(Scanner scanner = new Scanner(System.in)) {
             System.out.println("\nWelcome to WINSOME, a reWardINg SOcial MEdia!");
             String command = "";
-            String[] args = null;
 
             while(true) {
                 // getting the command string from input
+                String[] args = null;
                 System.out.print("\n> ");
                 String commandString = scanner.nextLine();
 
@@ -143,6 +143,9 @@ public class ClientMain implements Runnable {
 
                 shellPrint(this.shell.parseCommand(command, args).getOutput());
             }
+
+            // exiting the program
+            System.exit(0);
 
         } catch(RemoteException e) {
             System.err.println("WARNING: Server not reachable");

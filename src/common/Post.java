@@ -4,6 +4,7 @@ import java.io.Serializable;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -25,8 +26,9 @@ public class Post implements Serializable {
     private ConcurrentHashMap<String,String> likes = new ConcurrentHashMap<>();
     private ConcurrentHashMap<String,String> dislikes = new ConcurrentHashMap<>();
     private ConcurrentHashMap<Comment,String> comments = new ConcurrentHashMap<>();
+    private int timesRewarded;
 
-    private static final enum PostStatus {
+    private enum PostStatus {
         NEW,
         REWARDED
     }
@@ -43,6 +45,7 @@ public class Post implements Serializable {
         if(rewin) this.originalAuthor = Objects.requireNonNull(originalAuthor);
         else this.originalAuthor = author;
         this.rewin = rewin;
+        this.timesRewarded = 0;
     }
 
 
@@ -103,7 +106,56 @@ public class Post implements Serializable {
         return commentsArray;
     }
 
-    // getter/setter
+    // getter
+    public HashSet<String> getNewLikers() {
+
+        HashSet<String> newLikers = new HashSet<>();
+        this.likes.forEach((user, status) -> {
+            if(status.equals(PostStatus.NEW.name())) newLikers.add(user);
+        });
+
+        return newLikers;
+    }
+
+    // getter
+    public HashSet<String> getNewDislikers() {
+
+        HashSet<String> newDislikers = new HashSet<>();
+        this.dislikes.forEach((user, status) -> {
+            if(status.equals(PostStatus.NEW.name())) newDislikers.add(user);
+        });
+
+        return newDislikers;
+    }
+
+    // getter
+    public HashSet<String> getNewCommenters() {
+
+        HashSet<String> newCommenters = new HashSet<>();
+        this.comments.forEach((comment, status) -> {
+            if(status.equals(PostStatus.NEW.name())) newCommenters.add(comment.getAuthor());
+        });
+
+        return newCommenters;
+    }
+
+    // getter
+    public Set<Comment> getCommentsOfUser(String username) {
+
+        Set<Comment> userComments = new HashSet<>();
+        this.comments.forEach((comment, status) -> {
+            if(comment.getAuthor().equals(username)) userComments.add(comment);
+        });
+
+        return userComments;
+    }
+
+    // getter
+    public int getTimesRewarded() {
+        return this.timesRewarded;
+    }
+
+    // getter
     public static int incrementCounter() {
         return counter.incrementAndGet();
     }
@@ -113,9 +165,12 @@ public class Post implements Serializable {
         counter.set(value);
     }
 
-    // setter
+
+    // ########## UTILITY FUNCTIONS ##########
+
+    // adds a like from the user
     public boolean like(User user) {
-        if(this.likes.contains(user.getUsername()) || this.dislikes.contains(user.getUsername())) {
+        if(this.likes.containsKey(user.getUsername()) || this.dislikes.contains(user.getUsername())) {
             return false;
         }
         else {
@@ -124,9 +179,9 @@ public class Post implements Serializable {
         }
     }
 
-    // setter
+    // adds a dislike from the user
     public boolean dislike(User user) {
-        if(this.likes.contains(user.getUsername()) || this.dislikes.contains(user.getUsername())) {
+        if(this.likes.containsKey(user.getUsername()) || this.dislikes.contains(user.getUsername())) {
             return false;
         }
         else {
@@ -135,8 +190,13 @@ public class Post implements Serializable {
         }
     }
 
-    // setter
+    // adds a comment from the user
     public void addComment(Comment comment) {
         this.comments.putIfAbsent(comment, PostStatus.NEW.name());
+    }
+
+    // registers a reward cycle
+    public synchronized void registerRewardCycle() {
+        this.timesRewarded++;
     }
 }

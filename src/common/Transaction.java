@@ -4,17 +4,20 @@ import java.sql.Timestamp;
 
 public class Transaction {
 
-    private int value;
+    // value of the transaction
+    private double value;
+
+    // timestamp of when the transaction was made
     private String timestamp;
     
-    public Transaction(int value) {
+    public Transaction(double value) {
         this.value = value;
-        this. timestamp = new Timestamp(System.currentTimeMillis()).toString();
+        this.timestamp = new Timestamp(System.currentTimeMillis()).toString();
     }
 
 
     // getter
-    public int getValue() {
+    public double getValue() {
         return this.value;
     }
 

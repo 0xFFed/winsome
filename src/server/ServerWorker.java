@@ -8,6 +8,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Queue;
+import java.util.Scanner;
 import java.util.concurrent.ConcurrentMap;
 import java.rmi.RemoteException;
 import java.security.NoSuchAlgorithmException;
@@ -16,12 +17,16 @@ import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
+import java.net.URLConnection;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import common.User;
 import common.Post;
+import common.RewardTransaction;
 import common.Comment;
 import common.request.RequestObject;
 import common.request.ResponseObject;
@@ -146,6 +151,14 @@ class ServerWorker implements Runnable {
 
                 case "comment":
                     this.addComment(task.getRequest(), task.getSock());
+                    break;
+
+                case "wallet":
+                    this.getWallet(task.getRequest(), task.getSock());
+                    break;
+
+                case "wallet btc":
+                    this.getWalletInBitcoin(task.getRequest(), task.getSock());
                     break;
             
                 default:
@@ -277,7 +290,7 @@ class ServerWorker implements Runnable {
         Iterator<User> tempResult = selectedUsers.iterator();
         while(!(userTags.isEmpty()) && tempResult.hasNext()) {
             User currUser = tempResult.next();
-            result.add(currUser.getUsername());
+            result.add(currUser.getUsername()+" "+currUser.getTags());
         }
 
         ResponseObject response = new ResponseObject(ResponseObject.Result.SUCCESS, "Users sharing your tags: "+String.join(", ", result), null, result, null);
@@ -504,7 +517,7 @@ class ServerWorker implements Runnable {
         }
 
         String result = "\n####################\n\nTitle: \""+post.getTitle()+"\"\nContent: "+post.getContent()+"\nLikes: "+
-            post.getLikes().size()+"\nDislikes: "+post.getDislikes().size()+"\nComments:\n----------\n"+String.join("\n", commentList);
+            post.getLikes().size()+"\nDislikes: "+post.getDislikes().size()+"\nComments:\n----------\n"+String.join("\n", commentList)+'\n';
         if(post.isRewin()) result = result+"\n----------\n(Rewin from "+post.getOriginalAuthor()+"'s post)";
         result = result+"\n####################\n";
         
@@ -679,19 +692,78 @@ class ServerWorker implements Runnable {
             return;
         }
 
-        Comment comment = new Comment(user.getUsername(), request.getComment().getContent());
+        Comment comment = new Comment(user.getUsername(), request.getComment().getContent().replaceAll("/^ +/gm", ""));
         post.addComment(comment);
 
         ResponseObject response = new ResponseObject(ResponseObject.Result.SUCCESS, "Comment added", null, null, null);
         sendResponse(response, sock);
     }
 
-    /*
-    private void getWallet(RequestObject request, SocketChannel sock);
+    
+    private void getWallet(RequestObject request, SocketChannel sock) {
 
-    private void getWalletInBitcoin(RequestObject request, SocketChannel sock);
+        if(Objects.isNull(request.getToken()) || Objects.isNull(this.loggedUsers.get(request.getToken()))) {
+            ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
+            sendResponse(response, sock);
+            return;
+        }
 
-    */
+        User user = this.loggedUsers.get(request.getToken());
+
+        // getting balance and tx history (latest 50 txs) of the user
+        double balance = user.getBalance();
+        int count = 0;
+        ArrayList<RewardTransaction> txHistory = user.getTransactionHistory();
+        ArrayList<String> txHistoryText = new ArrayList<>();
+        Iterator<RewardTransaction> txIter = txHistory.iterator();
+        while(txIter.hasNext() && count < 50) {
+            RewardTransaction tx = txIter.next();
+            txHistoryText.add(tx.toString());
+            count++;
+        }
+
+        String result = "Your balance: "+balance+" WINCOINs\nYour tx history (latest 50):\n"+String.join("\n", txHistoryText)+'\n';
+
+        ResponseObject response = new ResponseObject(ResponseObject.Result.SUCCESS, result, null, null, null);
+        sendResponse(response, sock);
+    }
+
+    
+    private void getWalletInBitcoin(RequestObject request, SocketChannel sock) {
+        if(Objects.isNull(request.getToken()) || Objects.isNull(this.loggedUsers.get(request.getToken()))) {
+            ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "You are not logged in", null, null, null);
+            sendResponse(response, sock);
+            return;
+        }
+
+        User user = this.loggedUsers.get(request.getToken());
+
+        // getting the user's balance
+        double balance = user.getBalance();
+
+        String url = "https://random.org/integers/";
+        String charset = "UTF-8";
+        String query = "num=1&min=1&max=10&col=1&base=10&format=plain&rnd=new";
+        double result = 0.0;
+
+        try {
+            URLConnection conn = new URL(url+'?'+query).openConnection();
+            conn.setRequestProperty("Accept-Charset", charset);
+            InputStream response = conn.getInputStream();
+
+            try(Scanner scanner = new Scanner(response)) {
+                result = (Integer.parseInt(scanner.next())/(double)10000)*balance;
+            }
+        } catch(Exception e) {
+            e.printStackTrace();
+            ResponseObject response = new ResponseObject(ResponseObject.Result.ERROR, "Server error", null, null, null);
+            sendResponse(response, sock);
+        }
+
+        ResponseObject response = new ResponseObject(ResponseObject.Result.SUCCESS, "Your balance in BTC: "+result, null, null, null);
+        sendResponse(response, sock);
+    }
+
 
     private void invalidCommand(SocketChannel sock) {
 
