@@ -81,7 +81,7 @@ public class User {
     }
 
     // setter
-    public static synchronized void setCounter(int value) {
+    public static void setCounter(int value) {
         counter.set(value);
     }
 
@@ -89,7 +89,7 @@ public class User {
     // ########## UTILITY FUNCTIONS ##########
 
     // adds a follower to the user; returns true if it wasn't already a follower
-    public synchronized boolean addFollower(User follower) {
+    public boolean addFollower(User follower) {
         if(this.followers.contains(follower.getUsername())) return false;
         else {
             follower.getFollowings().add(this.getUsername());
@@ -98,7 +98,7 @@ public class User {
     }
 
     // removes a follower from the user; returns true if it was already a follower
-    public synchronized boolean removeFollower(User unfollower) {
+    public boolean removeFollower(User unfollower) {
         unfollower.getFollowings().remove(this.getUsername());
         return this.followers.remove(unfollower.getUsername());
     }

@@ -22,9 +22,14 @@ public class Post implements Serializable {
     private String author;
     private String originalAuthor;
     private boolean rewin;
-    private ConcurrentHashMap<String,Boolean> likes = new ConcurrentHashMap<>();
-    private ConcurrentHashMap<String,Boolean> dislikes = new ConcurrentHashMap<>();
-    private ConcurrentHashMap<Comment,Boolean> comments = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String,String> likes = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String,String> dislikes = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<Comment,String> comments = new ConcurrentHashMap<>();
+
+    private static final enum PostStatus {
+        NEW,
+        REWARDED
+    }
 
 
     // ########## METHODS ##########
@@ -104,34 +109,34 @@ public class Post implements Serializable {
     }
 
     // setter
-    public static synchronized void setCounter(int value) {
+    public static void setCounter(int value) {
         counter.set(value);
     }
 
     // setter
-    public synchronized boolean like(User user) {
+    public boolean like(User user) {
         if(this.likes.contains(user.getUsername()) || this.dislikes.contains(user.getUsername())) {
             return false;
         }
         else {
-            this.likes.putIfAbsent(user.getUsername(), Boolean.FALSE);
+            this.likes.putIfAbsent(user.getUsername(), PostStatus.NEW.name());
             return true;
         }
     }
 
     // setter
-    public synchronized boolean dislike(User user) {
+    public boolean dislike(User user) {
         if(this.likes.contains(user.getUsername()) || this.dislikes.contains(user.getUsername())) {
             return false;
         }
         else {
-            this.dislikes.putIfAbsent(user.getUsername(), Boolean.FALSE);
+            this.dislikes.putIfAbsent(user.getUsername(), PostStatus.NEW.name());
             return true;
         }
     }
 
     // setter
-    public synchronized void addComment(Comment comment) {
-        this.comments.putIfAbsent(comment, Boolean.FALSE);
+    public void addComment(Comment comment) {
+        this.comments.putIfAbsent(comment, PostStatus.NEW.name());
     }
 }

@@ -91,7 +91,7 @@ public class PostStorage extends Storage<Post> {
 
 
     // setter
-    private void updateCounterFile() {
+    private synchronized void updateCounterFile() {
         
 
         Gson gson = new GsonBuilder().serializeNulls().create();
@@ -115,7 +115,7 @@ public class PostStorage extends Storage<Post> {
 
 
     @Override
-    public synchronized boolean add(String key, Post elem) throws NullPointerException {
+    public boolean add(String key, Post elem) throws NullPointerException {
         boolean result = super.add(key, elem);
         if(result) {
             this.updateCounterFile();

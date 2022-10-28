@@ -92,7 +92,7 @@ public class UserStorage extends Storage<User> {
 
 
     // setter
-    private void updateCounterFile() {
+    private synchronized void updateCounterFile() {
 
         Gson gson = new GsonBuilder().serializeNulls().create();
         try(FileWriter writer = new FileWriter(this.counterFilePath)) {
@@ -115,7 +115,7 @@ public class UserStorage extends Storage<User> {
 
 
     @Override
-    public synchronized boolean add(String key, User elem) throws NullPointerException {
+    public boolean add(String key, User elem) throws NullPointerException {
         boolean result = super.add(key, elem);
         if(result) {
             this.updateCounterFile();
